@@ -11,6 +11,13 @@ import { initials, lifeYears } from '../domain/people';
 import { initialUiState, uiReducer } from '../app/uiState';
 
 describe('selection and focus', () => {
+  it('resolves a person removed by undo before rendering an empty inspector', () => {
+    const state = { ...initialUiState, selectedPersonId: 'undone-person', focusPersonId: 'undone-person', inspector: { kind: 'person' as const, id: 'undone-person' } };
+    expect(uiReducer(state, { type: 'reconcile', personIds: ['nikola', 'vera'] })).toMatchObject({
+      selectedPersonId: 'nikola', focusPersonId: 'nikola', inspector: { kind: 'person', id: 'nikola' },
+    });
+    expect(uiReducer(initialUiState, { type: 'reconcile', personIds: ['nikola'] })).toBe(initialUiState);
+  });
   it('selection changes only the selected person and inspector', () => {
     const state = { ...initialUiState, collapsedBranches: ['branch-to-retain'] };
     const selected = uiReducer(state, { type: 'select', personId: 'vera' });

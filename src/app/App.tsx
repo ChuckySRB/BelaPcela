@@ -31,9 +31,11 @@ export function App() {
 function ArchiveApp({ store }: { store: ArchiveStore }) {
   const { theme, toggleTheme } = useTheme();
   const archive = store.archive!;
-  const [ui, dispatch] = useReducer(uiReducer, initialUiState, state => ({
+  const [uiState, dispatch] = useReducer(uiReducer, initialUiState, state => ({
     ...state, inspector: window.matchMedia('(max-width: 850px)').matches ? null : state.inspector,
   }));
+  // Resolve removed selections in the same render as undo, avoiding a one-frame inspector collapse.
+  const ui = useMemo(() => uiReducer(uiState, { type: 'reconcile', personIds: archive.people.map(person => person.id) }), [uiState, archive.people]);
   const [route, setRoute] = useState(readRoute);
   const [dialog, setDialog] = useState<DialogState>(null);
   const showUnavailable = useCallback((title: string) => setDialog({ kind: 'soon', title }), []);
@@ -43,7 +45,6 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const addRelative = useCallback((personId: string) => setDialog({ kind: 'relative', personId }), []);
   const editPerson = useCallback((personId: string) => setDialog({ kind: 'edit', personId }), []);
   const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable]);
-  useEffect(() => { dispatch({ type: 'reconcile', personIds: archive.people.map(person => person.id) }); }, [archive.people]);
   useEffect(() => {
     const listener = () => setRoute(readRoute());
     window.addEventListener('hashchange', listener);
