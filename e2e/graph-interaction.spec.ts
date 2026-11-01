@@ -34,3 +34,37 @@ test('collapse preserves the viewport and survives profile navigation and mode c
   await page.reload();
   await expect(page.locator('.person-node')).toHaveCount(11);
 });
+
+test('zoom changes detail without changing card geometry or losing focused/selected people', async ({ page }, testInfo) => {
+  if (testInfo.project.name === 'desktop') await page.getByRole('button', { name: 'Затвори инспектор' }).click();
+  const vera = page.locator('.person-node').filter({ hasText: 'Вера Петронић' });
+  const geometry = await vera.evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }));
+  for (let i = 0; i < 6; i++) await page.getByRole('button', { name: 'Умањи', exact: true }).click();
+  await expect(vera).toHaveAttribute('data-detail', 'far');
+  await expect(page.locator('.person-node.is-focused')).toHaveAttribute('data-detail', 'near');
+  expect(await vera.evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }))).toEqual(geometry);
+  await vera.focus();
+  await page.keyboard.press('Enter');
+  await expect(vera).toHaveAttribute('data-detail', 'near');
+  await expect(page.getByRole('complementary').getByRole('heading', { name: 'Вера Петронић' })).toBeVisible();
+});
+
+test('delayed hover preview permits pointer travel and keyboard dismissal without selecting', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile', 'Touch users use the inspector and explicit preview action.');
+  const vera = page.locator('.person-node').filter({ hasText: 'Вера Петронић' });
+  await vera.hover();
+  const preview = page.getByRole('dialog', { name: 'Кратак преглед: Вера Петронић' });
+  await expect(preview).toBeVisible();
+  await preview.getByRole('button', { name: 'Подаци о особи' }).hover();
+  await expect(preview).toBeVisible();
+  await expect(page.locator('.person-node.is-selected')).toHaveAttribute('aria-label', /Никола Петронић/);
+  await page.keyboard.press('Escape');
+  await expect(preview).not.toBeVisible();
+  await vera.focus(); await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Кратак преглед: Вера Петронић', exact: true }).click();
+  await expect(preview.getByRole('button', { name: 'Затвори кратак преглед' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(preview).not.toBeVisible();
+  await expect(vera).toBeFocused();
+  await expect(page.getByRole('complementary').getByRole('heading', { name: 'Вера Петронић' })).toBeVisible();
+});
