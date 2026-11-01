@@ -1,0 +1,58 @@
+import type { FamilyArchive } from './model';
+
+/** Invented demonstration records. No family information is loaded from a server. */
+export const demoArchive: FamilyArchive = {
+  id: 'demo-petrovic',
+  name: 'Породица Петровић',
+  people: [
+    { id: 'jovan', name: 'Јован Петровић', occupation: 'Учитељ', biography: 'Чувао је породична писма и бележио приче свога краја. Његова љубав према књигама преносила се с колена на колено.' },
+    { id: 'milena', name: 'Милена Петровић', occupation: 'Кројачица' },
+    { id: 'nikola', name: 'Никола Петровић', nickname: 'Ниџа', occupation: 'Архитекта', biography: 'Одрастао је у кући с великим орахом и полицама пуним књига. Волео је цртање, дуге шетње и окупљања за породичним столом.\n\nУ породичној збирци остао је упамћен као радознао приповедач који је умео да свако путовање претвори у причу.' },
+    { id: 'vera', name: 'Вера Петровић', occupation: 'Библиотекарка', biography: 'Љубав према причама претворила је у свој позив. У овој збирци је забележена као Ивин једини познати родитељ.' },
+    { id: 'ana', name: 'Ана Јовановић', occupation: 'Историчарка уметности' },
+    { id: 'jelena', name: 'Јелена Савић', occupation: 'Преводитељка' },
+    { id: 'luka', name: 'Лука Петровић' },
+    { id: 'sara', name: 'Сара Петровић' },
+    { id: 'mia', name: 'Миа Петровић' },
+    { id: 'iva', name: 'Ива Петровић' },
+    { id: 'danica', name: 'Даница Илић', biography: 'Фотографија са овим именом пронађена је у породичном албуму. Сродство још није утврђено.' },
+  ],
+  partnerships: [
+    { id: 'jovan-milena', personIds: ['jovan', 'milena'], kind: 'married', fromYear: 1947 },
+    { id: 'nikola-ana', personIds: ['nikola', 'ana'], kind: 'married', fromYear: 1978 },
+    { id: 'nikola-jelena', personIds: ['nikola', 'jelena'], kind: 'partners', fromYear: 1996 },
+  ],
+  parentChildRelationships: [
+    { id: 'j-n', parentId: 'jovan', childId: 'nikola', kind: 'biological' },
+    { id: 'm-n', parentId: 'milena', childId: 'nikola', kind: 'biological' },
+    { id: 'j-v', parentId: 'jovan', childId: 'vera', kind: 'biological' },
+    { id: 'm-v', parentId: 'milena', childId: 'vera', kind: 'biological' },
+    { id: 'n-l', parentId: 'nikola', childId: 'luka', kind: 'biological' },
+    { id: 'a-l', parentId: 'ana', childId: 'luka', kind: 'biological' },
+    { id: 'n-s', parentId: 'nikola', childId: 'sara', kind: 'adoptive' },
+    { id: 'a-s', parentId: 'ana', childId: 'sara', kind: 'adoptive' },
+    { id: 'n-m', parentId: 'nikola', childId: 'mia', kind: 'biological' },
+    { id: 'je-m', parentId: 'jelena', childId: 'mia', kind: 'biological' },
+    { id: 'v-i', parentId: 'vera', childId: 'iva', kind: 'biological' },
+  ],
+  kinshipAssertions: [],
+  places: [
+    { id: 'belgrade', name: 'Београд, Србија' },
+    { id: 'valjevo', name: 'Ваљево, Србија' },
+  ],
+  events: [
+    { id: 'b-j', type: 'birth', personId: 'jovan', date: { year: 1924 }, placeId: 'valjevo' },
+    { id: 'd-j', type: 'death', personId: 'jovan', date: { year: 2003 } },
+    { id: 'b-m', type: 'birth', personId: 'milena', date: { year: 1928 }, placeId: 'valjevo' },
+    { id: 'd-m', type: 'death', personId: 'milena', date: { year: 2010 } },
+    { id: 'b-n', type: 'birth', personId: 'nikola', date: { year: 1952 }, placeId: 'belgrade' },
+    { id: 'b-v', type: 'birth', personId: 'vera', date: { year: 1956 }, placeId: 'belgrade' },
+    { id: 'b-a', type: 'birth', personId: 'ana', date: { year: 1955 } },
+    { id: 'b-je', type: 'birth', personId: 'jelena', date: { year: 1964 } },
+    { id: 'b-l', type: 'birth', personId: 'luka', date: { year: 1981 } },
+    { id: 'b-s', type: 'birth', personId: 'sara', date: { year: 1986 } },
+    { id: 'b-mi', type: 'birth', personId: 'mia', date: { year: 1999 } },
+    { id: 'b-i', type: 'birth', personId: 'iva', date: { year: 1984 } },
+  ],
+  media: [],
+};
