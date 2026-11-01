@@ -9,6 +9,7 @@ import { LifeTimeline, ProfileFacts } from '../people/ProfileSections';
 import { PersonEditorForm } from '../people/PersonEditorDialog';
 import type { ArchiveCommand } from '../../services/commands';
 import { eventHasSubject, eventLabel, formatDate } from '../../domain/events';
+import { useCatalogActions } from '../../app/CatalogContext';
 
 export interface PersonActions {
   selectPerson: (id: string) => void;
@@ -68,6 +69,7 @@ export function PersonInspector({ person, archive, actions, focused, onClose, hi
 }
 
 export function PersonProfilePage({ person, archive, actions, onBack, onSave, onReload }: PersonDetailsProps & { onBack: () => void; onSave: (command: ArchiveCommand) => Promise<void>; onReload: () => Promise<void> }) {
+  const catalog = useCatalogActions();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const editButton = useRef<HTMLButtonElement>(null);
@@ -84,6 +86,7 @@ export function PersonProfilePage({ person, archive, actions, onBack, onSave, on
       {person.identityNote && <p className="callout identity-note"><strong>Идентитет захтева проверу.</strong> {person.identityNote}</p>}
       {person.biography && <section className="profile-section"><span className="eyebrow">СЕЋАЊА КОЈА ОСТАЈУ</span><h2>Животна прича</h2>{person.biography.split('\n\n').map(paragraph => <p key={paragraph}>{paragraph}</p>)}</section>}
       <LifeTimeline person={person} archive={archive} />
+      {catalog && <button className="button button--soft" onClick={() => catalog.editEvent(undefined, person.id)}><Plus size={16} />Додај догађај</button>}
       {!hasProfileDetails(person) && !profileEvents(archive, person.id).length && <p className="empty-note">Ова страница хронике тек чека своју причу.</p>}
       </>}
     </div><div><ProfileFacts person={person} archive={archive} /><Relations person={person} archive={archive} actions={{ ...actions, selectPerson: actions.openProfile }} /></div></div>

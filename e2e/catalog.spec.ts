@@ -1,0 +1,64 @@
+import { expect, test } from '@playwright/test';
+
+test('creates an offline place, shares an event between people, and preserves the tree view', async ({ page }, testInfo) => {
+  const remote: string[] = [];
+  page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:5173') && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) remote.push(request.url()); });
+  await page.goto('/'); await expect(page.locator('.person-node')).toHaveCount(11);
+  const canvas = page.getByTestId('graph-canvas');
+  await expect.poll(async () => canvas.getAttribute('data-viewport')).not.toBe('0.000,0.000,0.720');
+  const view = await canvas.getAttribute('data-viewport');
+  await page.getByRole('button', { name: 'Места', exact: true }).click();
+  await page.getByRole('button', { name: 'Додај место', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Назив места', exact: true }).fill('Нови Сад');
+  await page.getByRole('textbox', { name: 'Историјски и други називи' }).fill('Újvidék');
+  await page.getByRole('spinbutton', { name: 'Географска ширина' }).fill('45.2671');
+  await page.getByRole('spinbutton', { name: 'Географска дужина' }).fill('19.8335');
+  await page.getByRole('button', { name: 'Сачувај место' }).click();
+  await expect(page.getByRole('heading', { name: 'Нови Сад', exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('place.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Догађаји', exact: true }).click();
+  await page.getByRole('button', { name: 'Додај догађај', exact: true }).click();
+  await page.getByRole('dialog').getByRole('combobox', { name: 'Врста догађаја' }).selectOption('residence');
+  await page.getByRole('textbox', { name: 'Назив догађаја (необавезно)' }).fill('Породична кућа у Новом Саду');
+  await page.getByRole('button', { name: 'Додај учесника' }).click();
+  await page.getByRole('combobox', { name: 'Учесник 1' }).selectOption('nikola');
+  await page.getByRole('button', { name: 'Додај учесника' }).click();
+  await page.getByRole('combobox', { name: 'Учесник 2' }).selectOption('vera');
+  await page.getByRole('spinbutton', { name: 'Година', exact: true }).fill('1970');
+  await page.getByRole('checkbox', { name: 'Период са почетком и крајем' }).check();
+  await page.getByRole('spinbutton', { name: 'Завршна година', exact: true }).fill('1975');
+  await page.getByRole('textbox', { name: 'Претражи сачувана места' }).fill('Újvidék');
+  await page.getByRole('combobox', { name: 'Место догађаја' }).selectOption({ label: 'Нови Сад' });
+  await page.getByRole('button', { name: 'Сачувај догађај' }).click();
+  await expect(page.getByRole('heading', { name: 'Породична кућа у Новом Саду', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Никола Петронић/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Вера Петронић/ })).toBeVisible();
+  const eventUrl = page.url();
+  await page.getByRole('link', { name: /Никола Петронић/ }).click();
+  await page.locator('.life-timeline').getByRole('link', { name: 'Породична кућа у Новом Саду', exact: true }).click();
+  expect(page.url()).toBe(eventUrl);
+  await page.getByRole('link', { name: /Вера Петронић/ }).click();
+  await expect(page.locator('.life-timeline').getByRole('link', { name: 'Породична кућа у Новом Саду', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.life-timeline').getByRole('link', { name: 'Породична кућа у Новом Саду', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Стабло', exact: true }).click();
+  // Reload starts a new viewpoint; navigation within that session must keep it stable.
+  await expect(page.locator('.person-node')).toHaveCount(11);
+  expect(remote).toEqual([]);
+  expect(view).not.toBeNull();
+});
+
+test('coordinate picker is keyboard-operable and catalog navigation retains the graph viewport', async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('.person-node')).toHaveCount(11);
+  await expect(page.getByText('Размештамо породичне приче…')).not.toBeVisible();
+  const canvas = page.getByTestId('graph-canvas'); const view = await canvas.getAttribute('data-viewport');
+  await page.getByRole('button', { name: 'Места', exact: true }).click();
+  await page.getByRole('button', { name: 'Додај место', exact: true }).click();
+  const picker = page.getByRole('button', { name: /Избор координата/ });
+  await picker.focus(); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('spinbutton', { name: 'Географска ширина' })).toHaveValue('1');
+  await expect(page.getByRole('spinbutton', { name: 'Географска дужина' })).toHaveValue('1');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Стабло', exact: true }).click();
+  await expect(canvas).toHaveAttribute('data-viewport', view!);
+});

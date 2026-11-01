@@ -12,8 +12,13 @@ import { useArchive, type ArchiveStore } from './useArchive';
 import type { ArchiveCommand } from '../services/commands';
 import { initialUiState, uiReducer } from './uiState';
 import { useTheme } from './useTheme';
+import { CatalogContext, type CatalogActions } from './CatalogContext';
+import { EventsPage } from '../features/events/EventsPage';
+import { EventEditor } from '../features/events/EventEditor';
+import { PlacesPage } from '../features/places/PlacesPage';
+import { PlaceEditor } from '../features/places/PlaceEditor';
 
-type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'soon'; title: string } | null;
+type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
 const navigate = (path: string) => { window.location.hash = path; };
 const navigation = [
@@ -45,6 +50,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const addRelative = useCallback((personId: string) => setDialog({ kind: 'relative', personId }), []);
   const editPerson = useCallback((personId: string) => setDialog({ kind: 'edit', personId }), []);
   const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable]);
+  const catalogActions = useMemo<CatalogActions>(() => ({ editPlace: id => setDialog({ kind: 'place', id }), editEvent: (id, personId) => setDialog({ kind: 'event', id, personId }), editMedia: () => showUnavailable('Датотеке'), uploadMedia: () => showUnavailable('Датотеке') }), [showUnavailable]);
   useEffect(() => {
     const listener = () => setRoute(readRoute());
     window.addEventListener('hashchange', listener);
@@ -64,7 +70,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
         else if (!event.shiftKey && store.canUndo) void store.undo().catch(() => undefined);
         return;
       }
-      if (event.key === 'Escape') dispatch({ type: 'close-inspector' });
+      if (event.key === 'Escape' && route === '/tree') dispatch({ type: 'close-inspector' });
       if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.metaKey && !event.altKey && ui.selectedPersonId && route === '/tree') {
         event.preventDefault(); focusPerson(ui.selectedPersonId);
       }
@@ -75,6 +81,10 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
 
   const profileId = route.startsWith('/person/') ? route.slice('/person/'.length) : null;
   const profile = archive.people.find(person => person.id === profileId);
+  const placesRoute = route === '/places' || route.startsWith('/place/');
+  const eventsRoute = route === '/events' || route.startsWith('/event/');
+  const treeActive = !profile && !placesRoute && !eventsRoute;
+  const routeId = (prefix: string) => { try { return route.startsWith(prefix) ? decodeURIComponent(route.slice(prefix.length)) : undefined; } catch { return '__invalid__'; } };
   useEffect(() => {
     document.title = profile ? `${personLabel(profile)} · BelaPčela` : 'BelaPčela · Породични музеј';
   }, [profile?.id, profile?.name]);
@@ -89,10 +99,12 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     const result = await store.execute(command);
     if (result.personId) selectPerson(result.personId);
     if (command.type === 'createPerson') dispatch({ type: 'mode', mode: 'whole' });
+    if (command.type === 'savePlace' && !command.placeId && result.recordId) navigate(`/place/${encodeURIComponent(result.recordId)}`);
+    if (command.type === 'saveEvent' && !command.eventId && result.recordId) navigate(`/event/${encodeURIComponent(result.recordId)}`);
     setDialog(null);
   };
-  return <div className="app-shell">
-    <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : '#tree-title')?.focus(); }}>Пређи на садржај</a>
+  return <CatalogContext.Provider value={catalogActions}><div className="app-shell">
+    <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : treeActive ? '#tree-title' : '.catalog-page h1')?.focus(); }}>Пређи на садржај</a>
     <header className="topbar">
       <a className="brand" href="#/tree" aria-label="BelaPčela · почетна"><BrandMark /><span><strong>BelaPčela</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
       <div className="archive-breadcrumb"><span />{archive.name}<ChevronRight size={14} /><span className="demo-label">Демо</span></div>
@@ -104,22 +116,26 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
       <button className="icon-button topbar-settings" aria-label="Подешавања — у припреми" onClick={() => showUnavailable('Подешавања')}><Settings2 size={19} /></button>
     </header>
     <nav className="main-nav" aria-label="Главна навигација">
-      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => <button key={label} aria-label={label} className={`nav-item ${index === 0 ? 'is-active' : ''}`} aria-current={index === 0 && !profile ? 'page' : undefined} title={index > 1 ? `${label} · у припреми` : label}
-        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else showUnavailable(label); }}>
-        {index === 0 ? <HexBadge label="Стабло" variant="forest"><Icon size={20} /></HexBadge> : <span className="nav-icon"><Icon size={21} strokeWidth={1.5} /></span>}<span>{label}</span>
-      </button>)}</div>
+      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => { const active = index === 0 ? treeActive : index === 2 ? placesRoute : index === 3 ? eventsRoute : false; return <button key={label} aria-label={label} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label}
+        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else if (index === 2) navigate('/places'); else if (index === 3) navigate('/events'); else showUnavailable(label); }}>
+        {active ? <HexBadge label={label} variant="forest"><Icon size={20} /></HexBadge> : <span className="nav-icon"><Icon size={21} strokeWidth={1.5} /></span>}<span>{label}</span>
+      </button>; })}</div>
       <div className="nav-bottom"><Leaf className="nav-leaf" size={24} strokeWidth={1} /><button className="nav-item" title="О прототипу" onClick={() => showUnavailable('О збирци')}><span className="nav-icon"><Info size={20} /></span><span>О збирци</span></button></div>
     </nav>
     <div className="app-content">
       <div className="demo-banner"><span className="demo-banner-dot" /><span>Пробна збирка</span><span className="banner-description">Чува се у овом прегледачу · резервне копије у припреми</span></div>
       {store.error && <div className="storage-error" role="alert"><span>{store.error}</span><button className="text-button" onClick={() => void store.reload()}>Освежи из локалне збирке</button></div>}
-      <div className="route-workspace" hidden={!!profile}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} active={!profile} /></div>
+      <div className="route-workspace" hidden={!treeActive}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} active={treeActive} /></div>
       {profile && <PersonProfilePage key={profile.id} person={profile} archive={archive} actions={actions} onBack={backToTree} onSave={saveCommand} onReload={store.reload} />}
+      {placesRoute && <PlacesPage key={route} archive={archive} placeId={routeId('/place/')} />}
+      {eventsRoute && <EventsPage key={route} archive={archive} eventId={routeId('/event/')} />}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
     {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}
     {dialog?.kind === 'edit' && <PersonEditorDialog archive={archive} person={archive.people.find(person => person.id === dialog.personId)} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'relative' && <RelativeEditorDialog anchorId={dialog.personId} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
+    {dialog?.kind === 'place' && <PlaceEditor place={archive.places.find(place => place.id === dialog.id)} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
+    {dialog?.kind === 'event' && <EventEditor event={archive.events.find(event => event.id === dialog.id)} personId={dialog.personId} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'soon' && <ComingSoonDialog title={dialog.title} onClose={() => setDialog(null)} />}
-  </div>;
+  </div></CatalogContext.Provider>;
 }

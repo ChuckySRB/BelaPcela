@@ -351,5 +351,40 @@ kbd { font: 11px var(--bp-font-body); border: 1px solid var(--bp-border); border
 .timeline-year { color: var(--bp-brass-ink); font-size: 13px; min-width: 65px; padding-top: 3px; }
 .identity-note { display: block; }
 .identity-marker { position: absolute; left: 7px; top: 7px; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--bp-brass); border-radius: 50%; font: 700 12px var(--bp-font-body); background: var(--bp-parchment); color: var(--bp-brass-ink); }
+.catalog-page { flex: 1; min-height: 0; overflow: auto; padding: 30px clamp(22px, 4vw, 65px) 45px; }
+.catalog-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 20px 0 30px; }
+.catalog-heading h1 { font-size: clamp(28px, 3vw, 42px); margin: 12px 0; overflow-wrap: anywhere; }
+.catalog-heading p { color: var(--bp-text-muted); font-size: 14px; margin: 0; }
+.catalog-heading > .button { flex-shrink: 0; }
+.catalog-filters { display: flex; align-items: end; gap: 20px; margin: 0 0 28px; max-width: 800px; }
+.catalog-filters .editor-field { flex: 1; }
+.catalog-search { max-width: 500px; margin-bottom: 24px; }
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 18px; margin: 22px 0; }
+.catalog-card { display: flex; flex-direction: column; align-items: start; gap: 11px; padding: 23px; background: var(--bp-card); border: 1px solid var(--bp-border); border-radius: 9px; text-decoration: none; min-width: 0; box-shadow: var(--bp-shadow-card); }
+.catalog-card:hover { border-color: var(--bp-sage); }
+.catalog-card h2 { font-size: 24px; margin: 0; overflow-wrap: anywhere; }
+.catalog-card p, .catalog-card small { margin: 0; color: var(--bp-text-muted); font-size: 13px; line-height: 1.7; }
+.catalog-card > svg { margin-bottom: 3px; color: var(--bp-brass-ink); }
+.detail-columns { display: grid; grid-template-columns: minmax(0,2fr) minmax(240px,1fr); gap: 45px; }
+.detail-columns > * { min-width: 0; }
+.detail-columns .profile-section h2 { font-size: 26px; }
+.record-link { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--bp-font-display); font-size: 20px; }
+.participant-row { display: flex; flex-direction: column; gap: 4px; padding: 13px 0; border-bottom: 1px solid var(--bp-border-soft); text-decoration: none; min-height: 44px; }
+.participant-row strong { font-size: 15px; font-weight: 400; }
+.participant-row small { color: var(--bp-text-muted); font-size: 12px; }
+.preserve-lines { white-space: pre-wrap; }
+.date-parts { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+.checkbox-field input { width: 18px; height: 18px; min-height: 18px; accent-color: var(--bp-forest); }
+.coordinate-map { margin: 12px 0 25px; }
+.coordinate-map > svg, .coordinate-picker svg { width: 100%; height: auto; display: block; border: 1px solid var(--bp-border); border-radius: 8px; }
+.coordinate-surface { fill: var(--bp-parchment); }
+.coordinate-map path { stroke: var(--bp-border); stroke-width: 1; }
+.coordinate-map text { fill: var(--bp-text-muted); font-size: 11px; font-family: var(--bp-font-body); }
+.coordinate-point { fill: var(--bp-forest); stroke: var(--bp-paper); stroke-width: 2; }
+.coordinate-point.is-selected { fill: var(--bp-brass-ink); }
+.coordinate-hit { fill: transparent; }
+.coordinate-picker { padding: 0; background: transparent; display: block; width: 100%; }
+.coordinate-picker svg { pointer-events: none; }
+@media (max-width: 750px) { .detail-columns { grid-template-columns: 1fr; gap: 20px; } .catalog-heading { flex-wrap: wrap; gap: 16px; } .catalog-filters { flex-wrap: wrap; } .catalog-filters .editor-field { min-width: 180px; } .catalog-page { padding-top: 20px; } }
 @media (max-width: 600px) { .profile-edit-section { padding: 16px; } .profile-hero { flex-wrap: wrap; } .profile-hero > div:last-child { flex: 1; min-width: 160px; } .profile-actions { margin-top: 16px; gap: 8px; } .life-timeline li { gap: 12px; padding-left: 18px; } .collection-item { padding: 10px; } }
 @media (max-width: 430px) { .backup-button { display: none; } .banner-description { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .storage-error { flex-direction: column; gap: 0; align-items: start; } }

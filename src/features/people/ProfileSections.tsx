@@ -1,6 +1,7 @@
 import type { FamilyArchive, Person } from '../../domain/model';
 import { contactHref, contactLabels, profileEvents } from '../../domain/profile';
 import { eventHasPerson, eventLabel, formatDate } from '../../domain/events';
+import { recordHref } from '../../app/CatalogContext';
 
 export function LifeTimeline({ archive, person }: { archive: FamilyArchive; person: Person }) {
   const events = profileEvents(archive, person.id);
@@ -10,7 +11,7 @@ export function LifeTimeline({ archive, person }: { archive: FamilyArchive; pers
     ...(person.occupations || []).map(item => ({ id: `occupation:${item.id}`, year: item.fromYear, dateLabel: item.fromYear !== undefined ? `${item.fromYear}.` : undefined, title: item.title, detail: item.toYear !== undefined ? `До ${item.toYear}. године` : undefined })),
   ].sort((a, b) => (a.year ?? Infinity) - (b.year ?? Infinity));
   return <section className="profile-section"><span className="eyebrow">ЗАБЕЛЕЖЕНИ ТРАГОВИ</span><h2>Траг кроз време</h2><ol className="life-timeline">{entries.map(item => <li key={item.id}>
-    {item.dateLabel && <span className="timeline-year">{item.dateLabel}</span>}<div><h3>{item.title}</h3>{item.detail && <p>{item.detail}</p>}</div>
+    {item.dateLabel && <span className="timeline-year">{item.dateLabel}</span>}<div><h3>{item.id.startsWith('occupation:') ? item.title : <a href={recordHref('event', item.id)}>{item.title}</a>}</h3>{item.detail && <p>{item.detail}</p>}</div>
   </li>)}</ol></section>;
 }
 
@@ -28,6 +29,6 @@ export function ProfileFacts({ person, archive }: { person: Person; archive: Fam
       const href = contactHref(contact);
       return <div key={contact.id}><dt>{contact.label || contactLabels[contact.kind]}</dt><dd>{href ? <a href={href} {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{contact.value}</a> : contact.value}</dd></div>;
     })}</dl></section>}
-    {places.length > 0 && <section className="profile-side-section"><h2>Забележена места</h2><ul className="profile-places">{places.map(place => <li key={place.id}>{place.name}</li>)}</ul></section>}
+    {places.length > 0 && <section className="profile-side-section"><h2>Забележена места</h2><ul className="profile-places">{places.map(place => <li key={place.id}><a href={recordHref('place', place.id)}>{place.name}</a></li>)}</ul></section>}
   </>;
 }

@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import 'fake-indexeddb/auto';
 import { Blob as NativeBlob } from 'node:buffer';
 import type Dexie from 'dexie';
