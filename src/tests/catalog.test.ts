@@ -16,6 +16,13 @@ const databases: Dexie[] = [];
 afterEach(async () => { for (const db of databases.splice(0)) { db.close(); await db.delete(); } });
 
 describe('normalized places and shared events', () => {
+  it('creates an event and a new reusable place atomically without changing existing places', () => {
+    const result = applyCommand(demoArchive, { type: 'saveEvent', details: { type: 'migration', participants: [{ personId: 'nikola', role: 'subject' }] }, newPlace: { name: 'Ново место' } });
+    expect(result.archive.places).toHaveLength(demoArchive.places.length + 1);
+    const event = result.archive.events.find(event => event.id === result.recordId)!;
+    expect(result.archive.places.find(place => place.id === event.placeId)?.name).toBe('Ново место');
+    expect(demoArchive.places).toHaveLength(2);
+  });
   it('uses one shared event and place across people without inferring a partnership', () => {
     const place = applyCommand(demoArchive, { type: 'savePlace', details: { name: 'Нови Сад', coordinates: { latitude: 45.2671, longitude: 19.8335 }, alternativeNames: ['Újvidék'] } });
     const shared = applyCommand(place.archive, { type: 'saveEvent', details: { type: 'residence', title: 'Породична кућа', participants: [{ personId: 'nikola', role: 'subject' }, { personId: 'vera', role: 'participant' }], placeId: place.recordId, date: { year: 1970, endYear: 1975 } } });

@@ -9,7 +9,7 @@ export type RelativeKind = z.infer<typeof relativeKindSchema>;
 const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional(), birthApproximate: z.boolean().optional(), deathApproximate: z.boolean().optional() };
 const commandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('savePlace'), placeId: idSchema.optional(), details: placeDetailsSchema.partial() }),
-  z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial() }),
+  z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial(), newPlace: placeDetailsSchema.optional() }),
   z.strictObject({ type: z.literal('addMedia'), items: z.array(z.strictObject({ id: idSchema, ...mediaDetailsSchema.omit({ src: true }).required({ originalFilename: true, mimeType: true, size: true }).shape })).min(1).max(20) }),
   z.strictObject({ type: z.literal('updateMedia'), mediaId: idSchema, details: mediaDetailsSchema.omit({ src: true, originalFilename: true, mimeType: true, size: true }).partial() }),
   z.strictObject({ type: z.literal('setPortrait'), personId: idSchema, mediaId: idSchema.nullable() }),
@@ -53,6 +53,10 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
     if (id && !old) throw new DomainError('Запис више није у збирци.');
     recordId = id || newId();
     const record = { ...old, ...command.details, id: recordId };
+    if (command.type === 'saveEvent' && command.newPlace) {
+      if (command.details.placeId) throw new DomainError('Изаберите сачувано место или унесите ново место.');
+      const placeId = newId(); next.places.push({ ...command.newPlace, id: placeId }); Object.assign(record, { placeId });
+    }
     if (command.type === 'savePlace') {
       if (old) next.places = next.places.map(item => item.id === recordId ? record as FamilyArchive['places'][number] : item);
       else next.places.push(record as FamilyArchive['places'][number]);

@@ -415,6 +415,8 @@ kbd { font: 11px var(--bp-font-body); border: 1px solid var(--bp-border); border
 .document-text { max-height: 65dvh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 22px; margin: 0; font: 14px/1.8 var(--bp-font-body); }
 .storage-preference { padding-top: 18px; margin-top: 25px; border-top: 1px solid var(--bp-border); color: var(--bp-text-muted); font-size: 13px; line-height: 1.7; }
 .profile-side-section .editor-field + .button { margin-top: 12px; }
+.inline-place-fields { display: flex; flex-direction: column; gap: 14px; padding: 18px 0 0; }
+.repeatable-fields > .mode-switch { margin-bottom: 16px; }
 @media (max-width: 750px) { .detail-columns { grid-template-columns: 1fr; gap: 20px; } .catalog-heading { flex-wrap: wrap; gap: 16px; } .catalog-filters { flex-wrap: wrap; } .catalog-filters .editor-field { min-width: 180px; } .catalog-page { padding-top: 20px; } }
 @media (max-width: 600px) { .profile-edit-section { padding: 16px; } .profile-hero { flex-wrap: wrap; } .profile-hero > div:last-child { flex: 1; min-width: 160px; } .profile-actions { margin-top: 16px; gap: 8px; } .life-timeline li { gap: 12px; padding-left: 18px; } .collection-item { padding: 10px; } }
 @media (max-width: 430px) { .backup-button { display: none; } .banner-description { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .storage-error { flex-direction: column; gap: 0; align-items: start; } }

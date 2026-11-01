@@ -62,3 +62,16 @@ test('coordinate picker is keyboard-operable and catalog navigation retains the 
   await page.getByRole('button', { name: 'Стабло', exact: true }).click();
   await expect(canvas).toHaveAttribute('data-viewport', view!);
 });
+
+test('can create a new reusable place inside an event without leaving the draft', async ({ page }) => {
+  await page.goto('/#/person/nikola');
+  await page.getByRole('button', { name: 'Додај догађај', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Назив догађаја (необавезно)' }).fill('Сеоба у завичај');
+  await page.getByRole('button', { name: 'Ново место', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Назив места', exact: true }).fill('Породично село');
+  await page.getByRole('button', { name: 'Сачувај догађај' }).click();
+  await expect(page.getByRole('heading', { name: 'Сеоба у завичај', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Породично село', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Породично село', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Сеоба у завичај/ })).toBeVisible();
+});

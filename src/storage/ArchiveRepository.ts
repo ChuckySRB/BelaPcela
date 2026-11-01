@@ -93,8 +93,9 @@ export class ArchiveRepository {
         fileIds.add(file.id);
         await this.db.table<StoredMediaFile>('mediaFiles').add({ ...file, archiveId: after.id });
       }
+      const existingMedia = new Set(before.archive.media.map(item => item.id));
       for (const item of after.media) {
-        if (item.size && !fileIds.has(item.id) && !await this.db.table('mediaFiles').get([after.id, item.id])) throw new DomainError('Оригинална датотека није доступна. Опис није сачуван без датотеке.');
+        if (item.size && !fileIds.has(item.id) && !existingMedia.has(item.id) && !await this.db.table('mediaFiles').where('[archiveId+id]').equals([after.id, item.id]).count()) throw new DomainError('Оригинална датотека није доступна. Опис није сачуван без датотеке.');
       }
       if (JSON.stringify(after) === JSON.stringify(before.archive)) return { before, after: before };
       await this.writeCollections(after, before.archive);
