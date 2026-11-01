@@ -1,0 +1,54 @@
+import { expect, test } from '@playwright/test';
+
+test('imports originals once, links galleries, sets a portrait and downloads identical bytes after reload', async ({ page }, testInfo) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/#/media');
+  const base64 = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 80; const context = canvas.getContext('2d')!; context.fillStyle = '#244B3A'; context.fillRect(0, 0, 64, 80); context.fillStyle = '#F7F3EA'; context.fillRect(10, 10, 44, 60); return canvas.toDataURL('image/png').split(',')[1]; });
+  const original = Buffer.from(base64, 'base64');
+  await page.getByRole('button', { name: 'Додај датотеке', exact: true }).click();
+  await page.getByLabel('Изабери датотеке', { exact: true }).setInputFiles([{ name: 'portrait.png', mimeType: 'image/png', buffer: original }, { name: 'pismo.txt', mimeType: 'text/plain', buffer: Buffer.from('Породично писмо · оригинал', 'utf8') }]);
+  await page.getByRole('checkbox', { name: 'Никола Петронић', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Вера Петронић', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Београд, Србија', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Рођење · Никола Петронић', exact: true }).check();
+  await page.getByRole('button', { name: 'Сачувај датотеке' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.locator('.media-tile')).toHaveCount(2);
+  const thumbnail = page.locator('.media-tile').filter({ hasText: 'portrait.png' }).locator('img');
+  await expect(thumbnail).toBeVisible();
+  await expect.poll(() => thumbnail.evaluate(img => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await page.locator('.media-tile').filter({ hasText: 'portrait.png' }).click();
+  await page.getByRole('combobox', { name: 'Изабери особу за портрет' }).selectOption('nikola');
+  await page.getByRole('button', { name: 'Постави за портрет' }).click();
+  await expect(page.getByText('Фотографија је изабрана за портрет. Оригинал је задржан.')).toBeVisible();
+  const mediaUrl = page.url();
+  await page.getByRole('button', { name: 'Измени опис и везе' }).click();
+  await page.getByRole('textbox', { name: 'Наслов датотеке' }).fill('Породични портрет');
+  await page.getByRole('textbox', { name: 'Ознаке (одвојене зарезом)' }).fill('породица, албум');
+  await page.getByRole('button', { name: 'Сачувај опис' }).click();
+  await expect(page.getByRole('heading', { name: 'Породични портрет', exact: true, level: 1 })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.original-preview img')).toBeVisible();
+  const downloadPromise = page.waitForEvent('download'); await page.getByRole('link', { name: 'Преузми оригинал' }).click(); const download = await downloadPromise;
+  const stream = await download.createReadStream(); const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(Buffer.concat(chunks)).toEqual(original); expect(download.suggestedFilename()).toBe('portrait.png');
+  await page.getByRole('link', { name: 'Никола Петронић', exact: true }).click();
+  await expect(page.locator('.portrait--profile img')).toBeVisible();
+  await expect(page.locator('.media-tile')).toHaveCount(2);
+  await page.locator('.media-tile').filter({ hasText: 'Породични портрет' }).click(); expect(page.url()).toBe(mediaUrl);
+  await page.getByRole('link', { name: 'Вера Петронић', exact: true }).click(); await expect(page.locator('.media-tile')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Архив', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Претражи датотеке' }).fill('албум'); await expect(page.locator('.media-tile')).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('gallery.png'), fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test('rejects unsupported content without creating records', async ({ page }) => {
+  await page.goto('/#/media'); await page.getByRole('button', { name: 'Додај датотеке', exact: true }).click();
+  await page.getByLabel('Изабери датотеке', { exact: true }).setInputFiles({ name: 'pretend.png', mimeType: 'image/png', buffer: Buffer.from('<html><script>alert(1)</script></html>') });
+  await page.getByRole('button', { name: 'Сачувај датотеке' }).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('није препозната');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Одустани', exact: true }).click();
+  await expect(page.locator('.media-tile')).toHaveCount(0);
+});

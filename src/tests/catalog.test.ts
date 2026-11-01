@@ -66,7 +66,7 @@ describe('atomic original-file storage', () => {
     const repository = new ArchiveRepository(db); const initial = await repository.initialize(demoArchive);
     const dispatcher = new CommandDispatcher(repository, initial);
     const original = new NativeBlob(['a'], { type: 'text/plain' }) as Blob;
-    const items = [{ id: 'file-1', alt: '', mimeType: 'text/plain', size: 1 }, { id: 'file-2', alt: '', mimeType: 'text/plain', size: 2 }];
+    const items = [{ id: 'file-1', alt: '', originalFilename: 'one.txt', mimeType: 'text/plain', size: 1 }, { id: 'file-2', alt: '', originalFilename: 'two.txt', mimeType: 'text/plain', size: 2 }];
     await expect(dispatcher.execute({ type: 'addMedia', items }, [{ id: 'file-1', original }, { id: 'file-2', original }])).rejects.toThrow('не подударају');
     expect(await db.table('mediaFiles').count()).toBe(0); expect((await repository.load()).archive.media).toHaveLength(0);
     await expect(dispatcher.execute({ type: 'addMedia', items: [items[0]] })).rejects.toThrow('Оригинална датотека');

@@ -6,6 +6,7 @@ import { EventList } from '../events/EventsPage';
 import { CoordinateMap } from './CoordinateMap';
 import { placeKindLabels } from './PlaceEditor';
 import { personLabel } from '../../domain/people';
+import { MediaGallery } from '../media/MediaGallery';
 
 export function PlacesPage({ archive, placeId }: { archive: FamilyArchive; placeId?: string }) {
   const actions = useCatalogActions(); const [query, setQuery] = useState('');
@@ -18,7 +19,7 @@ export function PlacesPage({ archive, placeId }: { archive: FamilyArchive; place
       {place.description && <section className="profile-section"><h2>О месту</h2><p className="preserve-lines">{place.description}</p></section>}
       {place.coordinates && <section className="profile-section"><h2>Координате</h2><p>{place.coordinates.latitude}, {place.coordinates.longitude}</p><CoordinateMap places={[place]} /></section>}
       {events.length > 0 && <section className="profile-section"><h2>Догађаји на овом месту</h2><EventList events={events} archive={archive} /></section>}
-      <div data-gallery-entity="place" data-gallery-id={place.id} />
+      <MediaGallery archive={archive} link={{ entityType: 'place', entityId: place.id }} />
     </div><div>{place.alternativeNames?.length ? <section className="profile-side-section"><h2>Други називи</h2>{place.alternativeNames.map(name => <p key={name}>{name}</p>)}</section> : null}{place.parentPlaceId && <section className="profile-side-section"><h2>Припада месту</h2><a href={recordHref('place', place.parentPlaceId)}>{archive.places.find(item => item.id === place.parentPlaceId)?.name}</a></section>}{ids.size > 0 && <section className="profile-side-section"><h2>Повезане особе</h2>{[...ids].map(id => <a key={id} className="participant-row" href={recordHref('person', id)}>{personLabel(archive.people.find(person => person.id === id))}</a>)}</section>}</div></div></main>;
   }
   const filtered = archive.places.filter(place => `${place.name} ${(place.alternativeNames || []).join(' ')} ${place.address || ''}`.toLocaleLowerCase('sr').includes(query.toLocaleLowerCase('sr'))).sort((a, b) => a.name.localeCompare(b.name, 'sr'));

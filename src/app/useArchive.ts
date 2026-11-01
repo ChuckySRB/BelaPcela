@@ -4,6 +4,8 @@ import { DomainError } from '../domain/validation';
 import { ArchiveRepository, type ArchiveSnapshot } from '../storage/ArchiveRepository';
 import { CommandDispatcher } from '../services/CommandDispatcher';
 import type { ArchiveCommand } from '../services/commands';
+import type { MediaLink } from '../domain/model';
+import { prepareMediaFiles } from '../services/mediaImport';
 
 const repository = new ArchiveRepository();
 export function useArchive() {
@@ -36,8 +38,14 @@ export function useArchive() {
   const execute = useCallback((command: ArchiveCommand) => run(dispatcher => dispatcher.execute(command)), [run]);
   const undo = useCallback(() => run(dispatcher => dispatcher.undo()), [run]);
   const redo = useCallback(() => run(dispatcher => dispatcher.redo()), [run]);
+  const uploadFiles = useCallback((files: File[], links: MediaLink[]) => run(async dispatcher => {
+    const prepared = await prepareMediaFiles(files, links);
+    return dispatcher.execute({ type: 'addMedia', items: prepared.items }, prepared.files);
+  }), [run]);
+  const archiveId = snapshot?.archive.id;
+  const loadMedia = useCallback((id: string, variant: 'original' | 'thumbnail') => archiveId ? repository.getMediaBlob(archiveId, id, variant) : Promise.resolve(undefined), [archiveId]);
   return {
-    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo,
+    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo, uploadFiles, loadMedia,
     canUndo: !!controller.current?.canUndo, canRedo: !!controller.current?.canRedo,
     undoLabel: controller.current?.undoLabel, redoLabel: controller.current?.redoLabel,
   };

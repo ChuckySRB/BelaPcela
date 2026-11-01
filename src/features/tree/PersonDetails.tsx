@@ -10,6 +10,7 @@ import { PersonEditorForm } from '../people/PersonEditorDialog';
 import type { ArchiveCommand } from '../../services/commands';
 import { eventHasSubject, eventLabel, formatDate } from '../../domain/events';
 import { useCatalogActions } from '../../app/CatalogContext';
+import { MediaGallery } from '../media/MediaGallery';
 
 export interface PersonActions {
   selectPerson: (id: string) => void;
@@ -87,6 +88,7 @@ export function PersonProfilePage({ person, archive, actions, onBack, onSave, on
       {person.biography && <section className="profile-section"><span className="eyebrow">СЕЋАЊА КОЈА ОСТАЈУ</span><h2>Животна прича</h2>{person.biography.split('\n\n').map(paragraph => <p key={paragraph}>{paragraph}</p>)}</section>}
       <LifeTimeline person={person} archive={archive} />
       {catalog && <button className="button button--soft" onClick={() => catalog.editEvent(undefined, person.id)}><Plus size={16} />Додај догађај</button>}
+      <MediaGallery archive={archive} link={{ entityType: 'person', entityId: person.id }} />
       {!hasProfileDetails(person) && !profileEvents(archive, person.id).length && <p className="empty-note">Ова страница хронике тек чека своју причу.</p>}
       </>}
     </div><div><ProfileFacts person={person} archive={archive} /><Relations person={person} archive={archive} actions={{ ...actions, selectPerson: actions.openProfile }} /></div></div>

@@ -17,8 +17,12 @@ import { EventsPage } from '../features/events/EventsPage';
 import { EventEditor } from '../features/events/EventEditor';
 import { PlacesPage } from '../features/places/PlacesPage';
 import { PlaceEditor } from '../features/places/PlaceEditor';
+import { MediaContext } from '../features/media/MediaContext';
+import { MediaPage } from '../features/media/MediaPage';
+import { MediaEditor, MediaUploadDialog } from '../features/media/MediaEditors';
+import type { MediaLink } from '../domain/model';
 
-type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'soon'; title: string } | null;
+type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'upload'; links: MediaLink[] } | { kind: 'media'; id: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
 const navigate = (path: string) => { window.location.hash = path; };
 const navigation = [
@@ -50,7 +54,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const addRelative = useCallback((personId: string) => setDialog({ kind: 'relative', personId }), []);
   const editPerson = useCallback((personId: string) => setDialog({ kind: 'edit', personId }), []);
   const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable]);
-  const catalogActions = useMemo<CatalogActions>(() => ({ editPlace: id => setDialog({ kind: 'place', id }), editEvent: (id, personId) => setDialog({ kind: 'event', id, personId }), editMedia: () => showUnavailable('Датотеке'), uploadMedia: () => showUnavailable('Датотеке') }), [showUnavailable]);
+  const catalogActions = useMemo<CatalogActions>(() => ({ editPlace: id => setDialog({ kind: 'place', id }), editEvent: (id, personId) => setDialog({ kind: 'event', id, personId }), editMedia: id => setDialog({ kind: 'media', id }), uploadMedia: (links = []) => setDialog({ kind: 'upload', links }) }), []);
   useEffect(() => {
     const listener = () => setRoute(readRoute());
     window.addEventListener('hashchange', listener);
@@ -83,7 +87,8 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const profile = archive.people.find(person => person.id === profileId);
   const placesRoute = route === '/places' || route.startsWith('/place/');
   const eventsRoute = route === '/events' || route.startsWith('/event/');
-  const treeActive = !profile && !placesRoute && !eventsRoute;
+  const mediaRoute = route === '/media' || route.startsWith('/media/');
+  const treeActive = !profile && !placesRoute && !eventsRoute && !mediaRoute;
   const routeId = (prefix: string) => { try { return route.startsWith(prefix) ? decodeURIComponent(route.slice(prefix.length)) : undefined; } catch { return '__invalid__'; } };
   useEffect(() => {
     document.title = profile ? `${personLabel(profile)} · BelaPčela` : 'BelaPčela · Породични музеј';
@@ -97,13 +102,13 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   };
   const saveCommand = async (command: ArchiveCommand) => {
     const result = await store.execute(command);
-    if (result.personId) selectPerson(result.personId);
+    if (result.personId && command.type !== 'setPortrait') selectPerson(result.personId);
     if (command.type === 'createPerson') dispatch({ type: 'mode', mode: 'whole' });
     if (command.type === 'savePlace' && !command.placeId && result.recordId) navigate(`/place/${encodeURIComponent(result.recordId)}`);
     if (command.type === 'saveEvent' && !command.eventId && result.recordId) navigate(`/event/${encodeURIComponent(result.recordId)}`);
     setDialog(null);
   };
-  return <CatalogContext.Provider value={catalogActions}><div className="app-shell">
+  return <MediaContext.Provider value={store.loadMedia}><CatalogContext.Provider value={catalogActions}><div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : treeActive ? '#tree-title' : '.catalog-page h1')?.focus(); }}>Пређи на садржај</a>
     <header className="topbar">
       <a className="brand" href="#/tree" aria-label="BelaPčela · почетна"><BrandMark /><span><strong>BelaPčela</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
@@ -116,8 +121,8 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
       <button className="icon-button topbar-settings" aria-label="Подешавања — у припреми" onClick={() => showUnavailable('Подешавања')}><Settings2 size={19} /></button>
     </header>
     <nav className="main-nav" aria-label="Главна навигација">
-      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => { const active = index === 0 ? treeActive : index === 2 ? placesRoute : index === 3 ? eventsRoute : false; return <button key={label} aria-label={label} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label}
-        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else if (index === 2) navigate('/places'); else if (index === 3) navigate('/events'); else showUnavailable(label); }}>
+      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => { const active = index === 0 ? treeActive : index === 2 ? placesRoute : index === 3 ? eventsRoute : index === 4 ? mediaRoute : false; return <button key={label} aria-label={label} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label}
+        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else if (index === 2) navigate('/places'); else if (index === 3) navigate('/events'); else navigate('/media'); }}>
         {active ? <HexBadge label={label} variant="forest"><Icon size={20} /></HexBadge> : <span className="nav-icon"><Icon size={21} strokeWidth={1.5} /></span>}<span>{label}</span>
       </button>; })}</div>
       <div className="nav-bottom"><Leaf className="nav-leaf" size={24} strokeWidth={1} /><button className="nav-item" title="О прототипу" onClick={() => showUnavailable('О збирци')}><span className="nav-icon"><Info size={20} /></span><span>О збирци</span></button></div>
@@ -129,6 +134,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
       {profile && <PersonProfilePage key={profile.id} person={profile} archive={archive} actions={actions} onBack={backToTree} onSave={saveCommand} onReload={store.reload} />}
       {placesRoute && <PlacesPage key={route} archive={archive} placeId={routeId('/place/')} />}
       {eventsRoute && <EventsPage key={route} archive={archive} eventId={routeId('/event/')} />}
+      {mediaRoute && <MediaPage key={route} archive={archive} mediaId={routeId('/media/')} onSave={saveCommand} />}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
     {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}
@@ -136,6 +142,8 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     {dialog?.kind === 'relative' && <RelativeEditorDialog anchorId={dialog.personId} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'place' && <PlaceEditor place={archive.places.find(place => place.id === dialog.id)} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'event' && <EventEditor event={archive.events.find(event => event.id === dialog.id)} personId={dialog.personId} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
+    {dialog?.kind === 'upload' && <MediaUploadDialog links={dialog.links} archive={archive} onClose={() => setDialog(null)} onUpload={async (files, links) => { await store.uploadFiles(files, links); setDialog(null); }} />}
+    {dialog?.kind === 'media' && archive.media.some(item => item.id === dialog.id) && <MediaEditor media={archive.media.find(item => item.id === dialog.id)!} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'soon' && <ComingSoonDialog title={dialog.title} onClose={() => setDialog(null)} />}
-  </div></CatalogContext.Provider>;
+  </div></CatalogContext.Provider></MediaContext.Provider>;
 }

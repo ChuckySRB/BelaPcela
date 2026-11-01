@@ -385,6 +385,36 @@ kbd { font: 11px var(--bp-font-body); border: 1px solid var(--bp-border); border
 .coordinate-hit { fill: transparent; }
 .coordinate-picker { padding: 0; background: transparent; display: block; width: 100%; }
 .coordinate-picker svg { pointer-events: none; }
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 18px; margin: 22px 0; }
+.media-tile { display: block; min-width: 0; overflow: hidden; background: var(--bp-card); border: 1px solid var(--bp-border); border-radius: 8px; text-decoration: none; box-shadow: var(--bp-shadow-card); }
+.media-tile-visual { aspect-ratio: 4/3; display: grid; place-items: center; background: var(--bp-parchment); color: var(--bp-brass-ink); overflow: hidden; }
+.media-tile-caption { padding: 14px; }
+.media-tile h3 { font-weight: 400; font-family: var(--bp-font-display); font-size: 17px; margin: 0; overflow-wrap: anywhere; }
+.media-tile p { font-size: 11px; color: var(--bp-text-muted); margin: 6px 0 0; }
+.media-image { display: block; width: 100%; height: 100%; min-height: 0; }
+.media-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.media-image-status { width: 100%; height: 100%; display: grid; place-items: center; font-size: 11px; text-align: center; color: var(--bp-text-muted); }
+.media-gallery { margin-top: 30px; }
+.media-gallery .section-heading h2 { margin: 0; font-size: 26px; }
+.gallery-add-empty { margin: 18px 0 30px; }
+.media-links-editor h3 { font-family: var(--bp-font-display); font-size: 21px; font-weight: 400; }
+.media-links-options { max-height: 240px; overflow: auto; margin-top: 15px; padding: 4px 12px; border: 1px solid var(--bp-border-soft); border-radius: 6px; }
+.editor-form .media-links-options fieldset { display: block; margin: 12px 0; }
+.media-links-options legend { font-size: 13px; color: var(--bp-text-muted); padding: 0 0 7px; }
+.media-links-options .checkbox-field { gap: 9px; overflow-wrap: anywhere; }
+.file-picker input { padding: 14px; background: var(--bp-parchment); }
+.file-picker input::file-selector-button { min-height: 44px; border: 1px solid var(--bp-border); background: var(--bp-card); color: var(--bp-forest); border-radius: 5px; margin-right: 10px; padding: 8px 12px; font: inherit; cursor: pointer; }
+.file-selection { padding-left: 20px; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.file-selection small { color: var(--bp-text-muted); margin-left: 8px; }
+.original-preview { background: var(--bp-parchment); border: 1px solid var(--bp-border); border-radius: 9px; overflow: hidden; margin-bottom: 18px; }
+.original-preview > img { width: 100%; max-height: 70dvh; object-fit: contain; display: block; }
+.original-preview video { width: 100%; max-height: 65dvh; display: block; }
+.original-preview audio { width: calc(100% - 40px); margin: 20px; }
+.document-cover { padding: 45px; text-align: center; color: var(--bp-text-muted); }
+.document-cover p { line-height: 1.7; margin: 20px 0 0; }
+.document-text { max-height: 65dvh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 22px; margin: 0; font: 14px/1.8 var(--bp-font-body); }
+.storage-preference { padding-top: 18px; margin-top: 25px; border-top: 1px solid var(--bp-border); color: var(--bp-text-muted); font-size: 13px; line-height: 1.7; }
+.profile-side-section .editor-field + .button { margin-top: 12px; }
 @media (max-width: 750px) { .detail-columns { grid-template-columns: 1fr; gap: 20px; } .catalog-heading { flex-wrap: wrap; gap: 16px; } .catalog-filters { flex-wrap: wrap; } .catalog-filters .editor-field { min-width: 180px; } .catalog-page { padding-top: 20px; } }
 @media (max-width: 600px) { .profile-edit-section { padding: 16px; } .profile-hero { flex-wrap: wrap; } .profile-hero > div:last-child { flex: 1; min-width: 160px; } .profile-actions { margin-top: 16px; gap: 8px; } .life-timeline li { gap: 12px; padding-left: 18px; } .collection-item { padding: 10px; } }
 @media (max-width: 430px) { .backup-button { display: none; } .banner-description { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .storage-error { flex-direction: column; gap: 0; align-items: start; } }

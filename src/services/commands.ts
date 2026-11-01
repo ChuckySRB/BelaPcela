@@ -10,8 +10,9 @@ const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear
 const commandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('savePlace'), placeId: idSchema.optional(), details: placeDetailsSchema.partial() }),
   z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial() }),
-  z.strictObject({ type: z.literal('addMedia'), items: z.array(z.strictObject({ id: idSchema, ...mediaDetailsSchema.shape })).min(1).max(20) }),
-  z.strictObject({ type: z.literal('updateMedia'), mediaId: idSchema, details: mediaDetailsSchema.omit({ src: true, originalFilename: true, mimeType: true, size: true }) }),
+  z.strictObject({ type: z.literal('addMedia'), items: z.array(z.strictObject({ id: idSchema, ...mediaDetailsSchema.omit({ src: true }).required({ originalFilename: true, mimeType: true, size: true }).shape })).min(1).max(20) }),
+  z.strictObject({ type: z.literal('updateMedia'), mediaId: idSchema, details: mediaDetailsSchema.omit({ src: true, originalFilename: true, mimeType: true, size: true }).partial() }),
+  z.strictObject({ type: z.literal('setPortrait'), personId: idSchema, mediaId: idSchema.nullable() }),
   z.strictObject({ type: z.literal('createPerson'), person: personDetailsSchema, ...lifeYearsFields }),
   z.strictObject({ type: z.literal('updatePerson'), personId: idSchema, changes: personDetailsSchema, ...lifeYearsFields }),
   z.strictObject({
@@ -22,7 +23,7 @@ const commandSchema = z.discriminatedUnion('type', [
 ]);
 export type ArchiveCommand = z.infer<typeof commandSchema>;
 export interface CommandResult { archive: FamilyArchive; personId?: string; recordId?: string }
-export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке' };
+export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке', setPortrait: 'Избор портрета' };
 
 function cleanDetails(details: z.infer<typeof personDetailsSchema>) {
   return Object.fromEntries(Object.entries(details).map(([key, value]) => [key,
@@ -64,13 +65,23 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   if (command.type === 'updateMedia') {
     const item = next.media.find(item => item.id === command.mediaId);
     if (!item) throw new DomainError('Датотека није у збирци.');
-    Object.assign(item, { title: undefined, tags: undefined, links: undefined }, command.details);
+    Object.assign(item, command.details);
   }
   const requirePerson = (id: string) => {
     const person = next.people.find(person => person.id === id);
     if (!person) throw new DomainError('Особа више није у овој збирци.');
     return person;
   };
+  if (command.type === 'setPortrait') {
+    const person = requirePerson(command.personId);
+    if (command.mediaId) {
+      const item = next.media.find(item => item.id === command.mediaId);
+      if (!item || !item.mimeType?.startsWith('image/')) throw new DomainError('За портрет изаберите фотографију из збирке.');
+      item.links ||= [];
+      if (!item.links.some(link => link.entityType === 'person' && link.entityId === person.id)) item.links.push({ entityType: 'person', entityId: person.id });
+    }
+    person.preferredMediaId = command.mediaId || undefined; personId = person.id;
+  }
   const addPerson = (details: z.infer<typeof personDetailsSchema>) => {
     const person: Person = { id: newId(), ...cleanDetails(details) };
     next.people.push(person); return person.id;
