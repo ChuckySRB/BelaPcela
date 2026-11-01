@@ -10,7 +10,16 @@ export interface Person extends Entity {
   biography?: string;
   occupation?: string;
   preferredMediaId?: string;
+  maidenName?: string;
+  aliases?: string[];
+  occupations?: Occupation[];
+  contacts?: Contact[];
+  facts?: PersonFact[];
+  identityNote?: string;
 }
+export interface Occupation { id: string; title: string; fromYear?: number; toYear?: number }
+export interface Contact { id: string; kind: 'email' | 'phone' | 'website' | 'social' | 'other'; label?: string; value: string }
+export interface PersonFact { id: string; label: string; value: string }
 
 export type ParentageKind = 'biological' | 'adoptive' | 'other';
 export interface ParentChildRelationship extends Entity {

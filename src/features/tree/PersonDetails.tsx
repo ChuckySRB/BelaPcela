@@ -3,6 +3,11 @@ import type { FamilyArchive, Person } from '../../domain/model';
 import { lifeYears, personLabel, relatives } from '../../domain/people';
 import { Portrait } from '../../components/Portrait';
 import { HexBadge } from '../../components/HexBadge';
+import { useEffect, useRef, useState } from 'react';
+import { hasProfileDetails, profileEvents } from '../../domain/profile';
+import { LifeTimeline, ProfileFacts } from '../people/ProfileSections';
+import { PersonEditorForm } from '../people/PersonEditorDialog';
+import type { ArchiveCommand } from '../../services/commands';
 
 export interface PersonActions {
   selectPerson: (id: string) => void;
@@ -15,7 +20,7 @@ export interface PersonActions {
 type PersonDetailsProps = { person: Person; archive: FamilyArchive; actions: PersonActions };
 
 function Facts({ person, archive }: Pick<PersonDetailsProps, 'person' | 'archive'>) {
-  const events = archive.events.filter(event => event.personId === person.id && (event.date || event.placeId));
+  const events = profileEvents(archive, person.id);
   if (!events.length && !person.occupation) return null;
   return <dl className="person-facts">
     {events.map(event => {
@@ -39,7 +44,7 @@ function Relations({ person, archive, actions }: PersonDetailsProps) {
   </section>;
 }
 
-export function PersonInspector({ person, archive, actions, focused, onClose }: PersonDetailsProps & { focused: boolean; onClose: () => void }) {
+export function PersonInspector({ person, archive, actions, focused, onClose, hiddenInBranch, onReveal }: PersonDetailsProps & { focused: boolean; onClose: () => void; hiddenInBranch?: boolean; onReveal?: () => void }) {
   return <aside className="inspector" aria-label="Подаци о изабраној особи">
     <div className="inspector-top"><span className="eyebrow">ЛИСТ ИЗ ПОРОДИЧНОГ АЛБУМА</span><button className="icon-button" aria-label="Затвори инспектор" onClick={onClose}><X size={18} /></button></div>
     <div className="inspector-scroll">
@@ -52,6 +57,8 @@ export function PersonInspector({ person, archive, actions, focused, onClose }: 
       </div>
       <div className="inspector-primary-actions"><button className="button button--primary" onClick={() => actions.openProfile(person.id)}>Отвори профил <ArrowUpRight size={17} /></button><button className="icon-button button--outlined" aria-label="Фокусирај изабрану особу" title="Фокусирај (F)" onClick={() => actions.focusPerson(person.id)}><Crosshair size={18} /></button></div>
       <Facts person={person} archive={archive} />
+      {hiddenInBranch && <div className="callout"><span>Особа је у склопљеној грани. <button className="text-button" onClick={onReveal}>Прикажи све гране</button></span></div>}
+      {person.identityNote && <p className="callout identity-note">Идентитет захтева проверу: {person.identityNote}</p>}
       {person.biography && <section className="biography-preview"><h3>Животна прича</h3><p>{person.biography.split('\n\n')[0]}</p></section>}
       <Relations person={person} archive={archive} actions={actions} />
     </div>
@@ -59,16 +66,26 @@ export function PersonInspector({ person, archive, actions, focused, onClose }: 
   </aside>;
 }
 
-export function PersonProfilePage({ person, archive, actions, onBack }: PersonDetailsProps & { onBack: () => void }) {
+export function PersonProfilePage({ person, archive, actions, onBack, onSave, onReload }: PersonDetailsProps & { onBack: () => void; onSave: (command: ArchiveCommand) => Promise<void>; onReload: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !editing) editButton.current?.focus({ preventScroll: true });
+    wasEditing.current = editing;
+  }, [editing]);
   return <main className="profile-page" aria-label={`Профил: ${personLabel(person)}`}>
-    <button className="text-button" onClick={onBack}><ArrowLeft size={17} />Назад на стабло</button>
-    <div className="profile-hero"><Portrait person={person} archive={archive} className="portrait--profile" /><div><span className="eyebrow">ПОРОДИЧНА ХРОНИКА · ДЕМО</span><h1 tabIndex={-1}>{personLabel(person)}</h1>{person.nickname && <p className="nickname">„{person.nickname}“</p>}{lifeYears(archive, person.id) && <p className="life-years">{lifeYears(archive, person.id)}</p>}{person.occupation && <p>{person.occupation}</p>}<button className="button button--primary" onClick={() => actions.addRelative(person.id)}><Plus size={17} />Додај сродника</button></div></div>
+    <button className="text-button" disabled={busy} onClick={onBack}><ArrowLeft size={17} />Назад на стабло</button>
+    <div className="profile-hero"><Portrait person={person} archive={archive} className="portrait--profile" /><div><span className="eyebrow">ПОРОДИЧНА ХРОНИКА</span><h1 tabIndex={-1}>{personLabel(person)}</h1>{person.nickname && <p className="nickname">„{person.nickname}“</p>}{lifeYears(archive, person.id) && <p className="life-years">{lifeYears(archive, person.id)}</p>}{person.occupation && <p>{person.occupation}</p>}<div className="profile-actions"><button ref={editButton} className="button button--primary" disabled={busy} onClick={() => setEditing(value => !value)}><Pencil size={16} />{editing ? 'Затвори уређивање' : 'Измени профил'}</button><button className="button button--outlined" disabled={busy} onClick={() => actions.addRelative(person.id)}><Plus size={17} />Додај сродника</button><button className="text-button" disabled={busy} onClick={() => { actions.focusPerson(person.id); onBack(); }}><Crosshair size={16} />Фокусирај у стаблу</button></div></div></div>
     <div className="profile-columns"><div>
+      {editing ? <section className="profile-edit-section" aria-label="Уређивање профила"><h2>Уређивање профила</h2><PersonEditorForm key={person.id} person={person} archive={archive} onBusyChange={setBusy} onClose={() => setEditing(false)} onReload={onReload} onSave={async command => { await onSave(command); setEditing(false); setBusy(false); }} /></section> : <>
+      {person.identityNote && <p className="callout identity-note"><strong>Идентитет захтева проверу.</strong> {person.identityNote}</p>}
       {person.biography && <section className="profile-section"><span className="eyebrow">СЕЋАЊА КОЈА ОСТАЈУ</span><h2>Животна прича</h2>{person.biography.split('\n\n').map(paragraph => <p key={paragraph}>{paragraph}</p>)}</section>}
-      {archive.events.some(event => event.personId === person.id) && <section className="profile-section"><h2>Траг кроз време</h2><Facts person={person} archive={archive} /></section>}
-      {!person.biography && !archive.events.some(event => event.personId === person.id) && <p className="empty-note">Ова страница хронике тек чека своју причу.</p>}
-    </div><div><Relations person={person} archive={archive} actions={{ ...actions, selectPerson: actions.openProfile }} /></div></div>
-    <button className="button button--outlined" onClick={() => actions.editPerson(person.id)}><Pencil size={16} />Измени особу</button>
+      <LifeTimeline person={person} archive={archive} />
+      {!hasProfileDetails(person) && !profileEvents(archive, person.id).length && <p className="empty-note">Ова страница хронике тек чека своју причу.</p>}
+      </>}
+    </div><div><ProfileFacts person={person} archive={archive} /><Relations person={person} archive={archive} actions={{ ...actions, selectPerson: actions.openProfile }} /></div></div>
     <p className="prototype-note">Подаци се чувају само у овом прегледачу.</p>
   </main>;
 }

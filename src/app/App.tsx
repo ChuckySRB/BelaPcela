@@ -77,8 +77,10 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const profile = archive.people.find(person => person.id === profileId);
   useEffect(() => {
     document.title = profile ? `${personLabel(profile)} · BelaPčela` : 'BelaPčela · Породични музеј';
+  }, [profile?.id, profile?.name]);
+  useEffect(() => {
     if (profile) document.querySelector<HTMLElement>('.profile-page h1')?.focus();
-  }, [profile]);
+  }, [profile?.id]);
   const backToTree = () => {
     navigate('/tree');
     requestAnimationFrame(() => document.getElementById('tree-title')?.focus());
@@ -111,8 +113,8 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     <div className="app-content">
       <div className="demo-banner"><span className="demo-banner-dot" /><span>Пробна збирка</span><span className="banner-description">Чува се у овом прегледачу · резервне копије у припреми</span></div>
       {store.error && <div className="storage-error" role="alert"><span>{store.error}</span><button className="text-button" onClick={() => void store.reload()}>Освежи из локалне збирке</button></div>}
-      <div className="route-workspace" hidden={!!profile}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} /></div>
-      {profile && <PersonProfilePage person={profile} archive={archive} actions={actions} onBack={backToTree} />}
+      <div className="route-workspace" hidden={!!profile}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} active={!profile} /></div>
+      {profile && <PersonProfilePage key={profile.id} person={profile} archive={archive} actions={actions} onBack={backToTree} onSave={saveCommand} onReload={store.reload} />}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
     {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}

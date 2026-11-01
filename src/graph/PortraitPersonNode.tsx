@@ -30,9 +30,10 @@ export const PortraitPersonNode = memo(function PortraitPersonNode({ data, selec
       </div>
     </NodeToolbar>
     <button ref={trigger} {...preview.triggerEvents} data-detail={selected || data.focused ? 'near' : zoomDetail} className={`person-node nodrag ${selected ? 'is-selected' : ''} ${data.focused ? 'is-focused' : ''}`}
-      aria-label={`${name}${years ? `, ${years}` : ''}${data.focused ? ', централна особа' : ''}`}
+      aria-label={`${name}${years ? `, ${years}` : ''}${data.focused ? ', централна особа' : ''}${person.identityNote ? ', идентитет захтева проверу' : ''}`}
       aria-pressed={selected || false} onClick={() => { preview.close(); selectPerson(person.id); }} onDoubleClick={() => openProfile(person.id)}>
       {data.focused && <HexBadge variant="brass" label="Централна особа" className="person-focus-badge"><Crosshair size={13} /></HexBadge>}
+      {person.identityNote && <span className="identity-marker" title={`Идентитет захтева проверу: ${person.identityNote}`} aria-hidden="true">?</span>}
       <Portrait person={person} archive={archive} />
       <span className="person-node-name"><span className="full-person-name">{name}</span><span className="short-person-name" aria-hidden="true">{shortName(name)}</span></span>
       {years && <span className="person-node-years">{years}</span>}

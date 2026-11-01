@@ -5,11 +5,29 @@ export class DomainError extends Error {}
 export const idSchema = z.string().min(1).max(200);
 const entity = { id: idSchema, createdAt: z.iso.datetime().optional(), updatedAt: z.iso.datetime().optional() };
 const text = z.string().max(200);
+export const yearSchema = z.number().int().min(-9999).max(9999);
+export const occupationSchema = z.strictObject({ id: idSchema, title: text.trim().min(1), fromYear: yearSchema.optional(), toYear: yearSchema.optional() })
+  .refine(item => item.fromYear === undefined || item.toYear === undefined || item.fromYear <= item.toYear, 'Почетна година занимања мора бити пре завршне.');
+export const contactSchema = z.strictObject({
+  id: idSchema, kind: z.enum(['email', 'phone', 'website', 'social', 'other']), label: text.trim().optional(),
+  value: z.string().trim().min(1).max(500).refine(value => !/[\r\n]/.test(value)),
+}).superRefine((contact, ctx) => {
+  if (contact.kind === 'email' && !z.email().safeParse(contact.value).success) ctx.addIssue({ code: 'custom', message: 'Унесите исправну адресу е-поште.' });
+  if (contact.kind === 'website' || contact.kind === 'social') {
+    try { const url = new URL(contact.value); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error(); }
+    catch { ctx.addIssue({ code: 'custom', message: 'Линк мора бити потпуна http или https адреса, без лозинке.' }); }
+  }
+});
+export const factSchema = z.strictObject({ id: idSchema, label: text.trim().min(1), value: z.string().trim().min(1).max(1000) });
 export const personDetailsSchema = z.strictObject({
   name: text.optional(), nickname: text.optional(), occupation: text.optional(), biography: z.string().max(20000).optional(),
+  maidenName: text.optional(), identityNote: z.string().max(1000).optional(), preferredMediaId: idSchema.optional(),
+  aliases: z.array(text.trim().min(1)).max(50).optional(),
+  occupations: z.array(occupationSchema).max(100).optional(),
+  contacts: z.array(contactSchema).max(100).optional(),
+  facts: z.array(factSchema).max(100).optional(),
 });
 export type PersonDetails = z.infer<typeof personDetailsSchema>;
-export const yearSchema = z.number().int().min(-9999).max(9999);
 export const parentageSchema = z.enum(['biological', 'adoptive', 'other']);
 export const partnershipSchema = z.enum(['married', 'partners', 'unspecified']);
 const archiveSchema = z.strictObject({
@@ -74,6 +92,10 @@ export function validateArchive(input: unknown): FamilyArchive {
     eventKeys.add(key);
   });
   archive.people.forEach(person => {
+    for (const records of [person.occupations || [], person.contacts || [], person.facts || []]) {
+      if (new Set(records.map(record => record.id)).size !== records.length) throw new DomainError('Поља исте особе морају имати јединствене идентификаторе.');
+    }
+    if (new Set(person.aliases || []).size !== (person.aliases || []).length) throw new DomainError('Алтернативна имена не треба понављати.');
     if (person.preferredMediaId && !media.has(person.preferredMediaId)) throw new DomainError('Изабрана фотографија не постоји у збирци.');
     const birth = archive.events.find(event => event.personId === person.id && event.type === 'birth')?.date?.year;
     const death = archive.events.find(event => event.personId === person.id && event.type === 'death')?.date?.year;

@@ -4,9 +4,10 @@ import { DomainError, idSchema, parentageSchema, partnershipSchema, personDetail
 
 export const relativeKindSchema = z.enum(['parent', 'child', 'partner', 'sibling']);
 export type RelativeKind = z.infer<typeof relativeKindSchema>;
+const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional(), birthApproximate: z.boolean().optional(), deathApproximate: z.boolean().optional() };
 const commandSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('createPerson'), person: personDetailsSchema }),
-  z.strictObject({ type: z.literal('updatePerson'), personId: idSchema, changes: personDetailsSchema, birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional() }),
+  z.strictObject({ type: z.literal('createPerson'), person: personDetailsSchema, ...lifeYearsFields }),
+  z.strictObject({ type: z.literal('updatePerson'), personId: idSchema, changes: personDetailsSchema, ...lifeYearsFields }),
   z.strictObject({
     type: z.literal('addRelative'), anchorId: idSchema, relationship: relativeKindSchema,
     target: z.union([z.strictObject({ existingPersonId: idSchema }), z.strictObject({ newPerson: personDetailsSchema })]),
@@ -18,13 +19,22 @@ export interface CommandResult { archive: FamilyArchive; personId?: string }
 export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника' };
 
 function cleanDetails(details: z.infer<typeof personDetailsSchema>) {
-  return Object.fromEntries(Object.entries(details).map(([key, value]) => [key, value?.trim() || undefined]));
+  return Object.fromEntries(Object.entries(details).map(([key, value]) => [key,
+    typeof value === 'string' ? value.trim() || undefined : Array.isArray(value) ? value.length ? value : undefined : value,
+  ]));
 }
 
 /** Pure command application. IDs are created once and retained by undo/redo snapshots. */
 export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newId: () => string = () => crypto.randomUUID()): CommandResult {
   const parsed = commandSchema.safeParse(input);
-  if (!parsed.success) throw new DomainError('Проверите унесене податке. Године морају бити цели бројеви, а име највише 200 знакова.');
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue && /[А-Яа-яЂђЈјЉљЊњЋћЏџ]/.test(issue.message)) throw new DomainError(issue.message);
+    if (issue?.path.includes('contacts')) throw new DomainError('За сваки контакт унесите исправну вредност. За веб-сајтове користите потпуну http или https адресу.');
+    if (issue?.path.includes('facts')) throw new DomainError('Додатни податак мора имати и назив и вредност. Празан ред можете уклонити.');
+    if (issue?.path.includes('occupations')) throw new DomainError('Унесите назив занимања и исправне целе године, или уклоните празан ред.');
+    throw new DomainError('Проверите унесене податке. Године морају бити цели бројеви, а име највише 200 знакова.');
+  }
   const command = parsed.data;
   const next: FamilyArchive = structuredClone(archive);
   let personId: string | undefined;
@@ -37,19 +47,30 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
     const person: Person = { id: newId(), ...cleanDetails(details) };
     next.people.push(person); return person.id;
   };
-  const setYear = (personId: string, type: LifeEvent['type'], year: number | null | undefined) => {
-    if (year === undefined) return;
+  const setYear = (personId: string, type: LifeEvent['type'], year: number | null | undefined, approximate?: boolean) => {
+    if (year === undefined && approximate === undefined) return;
     const event = next.events.find(event => event.personId === personId && event.type === type);
     if (event) {
       if (year === null) { delete event.date; if (!event.placeId) next.events = next.events.filter(item => item.id !== event.id); }
-      else if (event.date?.year !== year) event.date = { year };
-    } else if (year !== null) next.events.push({ id: newId(), type, personId, date: { year } });
+      else {
+        if (year !== undefined && event.date?.year !== year) event.date = { year };
+        if (approximate !== undefined) {
+          if (!event.date) { if (approximate) throw new DomainError('Прво унесите годину за приближан датум.'); }
+          else if (approximate) event.date.approximate = true;
+          else delete event.date.approximate;
+        }
+      }
+    } else if (year !== null && year !== undefined) next.events.push({ id: newId(), type, personId, date: { year, ...(approximate ? { approximate: true } : {}) } });
+    else if (approximate) throw new DomainError('Прво унесите годину за приближан датум.');
   };
-  if (command.type === 'createPerson') personId = addPerson(command.person);
+  if (command.type === 'createPerson') {
+    personId = addPerson(command.person);
+    setYear(personId, 'birth', command.birthYear, command.birthApproximate); setYear(personId, 'death', command.deathYear, command.deathApproximate);
+  }
   if (command.type === 'updatePerson') {
     const person = requirePerson(command.personId);
     Object.assign(person, cleanDetails(command.changes));
-    setYear(person.id, 'birth', command.birthYear); setYear(person.id, 'death', command.deathYear);
+    setYear(person.id, 'birth', command.birthYear, command.birthApproximate); setYear(person.id, 'death', command.deathYear, command.deathApproximate);
     personId = person.id;
   }
   if (command.type === 'addRelative') {

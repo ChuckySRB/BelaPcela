@@ -52,5 +52,5 @@ export function relatives(archive: FamilyArchive, personId: string) {
 export function searchPeople(people: Person[], query: string) {
   const normalize = (value: string) => value.normalize('NFC').toLocaleLowerCase('sr').trim();
   const needle = normalize(query);
-  return people.filter(person => normalize(`${personLabel(person)} ${person.nickname || ''}`).includes(needle));
+  return people.filter(person => normalize(`${personLabel(person)} ${person.nickname || ''} ${person.maidenName || ''} ${(person.aliases || []).join(' ')}`).includes(needle));
 }

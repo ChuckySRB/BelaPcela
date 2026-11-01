@@ -19,9 +19,9 @@ const layoutService = new ElkLayoutService();
 const nodeTypes = { person: PortraitPersonNode, family: FamilyHexHub };
 const edgeTypes = { relationship: RelationshipEdge };
 type FlowNode = PersonFlowNode | FamilyFlowNode;
-type WorkspaceProps = { archive: FamilyArchive; ui: UiState; dispatch: (action: UiAction) => void; actions: PersonActions };
+type WorkspaceProps = { archive: FamilyArchive; ui: UiState; dispatch: (action: UiAction) => void; actions: PersonActions; active: boolean };
 
-function Canvas({ archive, ui, dispatch, actions }: WorkspaceProps) {
+function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
   const flow = useReactFlow<FlowNode, RelationshipFlowEdge>();
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 0.72 });
   const [positioned, setPositioned] = useState<PositionedNode[]>([]);
@@ -79,7 +79,7 @@ function Canvas({ archive, ui, dispatch, actions }: WorkspaceProps) {
 
   // Layout changes are explicit. Selection and inspector state never trigger fitView.
   useEffect(() => {
-    if (!layoutVersion || fittedVersion.current === layoutVersion || status !== 'ready') return;
+    if (!active || !layoutVersion || fittedVersion.current === layoutVersion || status !== 'ready') return;
     const frame = requestAnimationFrame(() => {
       const anchored = pendingViewport.current;
       pendingViewport.current = null;
@@ -89,7 +89,7 @@ function Canvas({ archive, ui, dispatch, actions }: WorkspaceProps) {
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [layoutVersion, flow, status]);
+  }, [layoutVersion, flow, status, active]);
 
   const graphActions = useMemo(() => ({ ...actions, archive, inspectFamily: (id: string) => dispatch({ type: 'inspect-family', groupId: id }), toggleBranch: (id: string) => dispatch({ type: 'toggle-branch', groupId: id }) }), [actions, archive, dispatch]);
   const fit = () => void flow.fitView({ padding: 0.12, maxZoom: 0.88, duration: 0 });
@@ -131,7 +131,7 @@ export function TreeWorkspace(props: WorkspaceProps) {
       {ui.collapsedBranches.length > 0 && <div className="collapsed-branches-bar"><span>Склопљене гране: {ui.collapsedBranches.length}</span><button className="text-button" onClick={() => dispatch({ type: 'expand-all' })}>Прикажи све гране</button></div>}
       <footer className="canvas-footer"><div className="graph-legend" aria-label="Легенда веза"><span><i className="legend-line" />Родитељство</span><span><i className="legend-line legend-line--dashed" />Усвојење / друга веза</span></div><span className="canvas-hint"><MousePointer2 size={13} />Превуци за померање · точкић за увећање</span></footer>
     </section>
-    {selected && <PersonInspector person={selected} archive={archive} actions={actions} focused={selected.id === ui.focusPersonId} onClose={() => dispatch({ type: 'close-inspector' })} />}
+    {selected && <PersonInspector person={selected} archive={archive} actions={actions} hiddenInBranch={fullProjection.hiddenPersonIds.includes(selected.id)} onReveal={() => dispatch({ type: 'expand-all' })} focused={selected.id === ui.focusPersonId} onClose={() => dispatch({ type: 'close-inspector' })} />}
     {group && <FamilyInspector group={group} archive={archive} branch={fullProjection.branches[group.id]} onToggleBranch={() => dispatch({ type: 'toggle-branch', groupId: group.id })} selectPerson={actions.selectPerson} onClose={() => dispatch({ type: 'close-inspector' })} />}
   </main>;
 }
