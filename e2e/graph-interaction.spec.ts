@@ -41,6 +41,9 @@ test('zoom changes detail without changing card geometry or losing focused/selec
   const geometry = await vera.evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }));
   for (let i = 0; i < 6; i++) await page.getByRole('button', { name: 'Умањи', exact: true }).click();
   await expect(vera).toHaveAttribute('data-detail', 'far');
+  const hubTarget = page.locator('.family-hub > button').first();
+  expect((await hubTarget.boundingBox())!.width).toBeGreaterThanOrEqual(43);
+  expect((await hubTarget.boundingBox())!.height).toBeGreaterThanOrEqual(43);
   await expect(page.locator('.person-node.is-focused')).toHaveAttribute('data-detail', 'near');
   expect(await vera.evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }))).toEqual(geometry);
   await vera.focus();

@@ -297,6 +297,7 @@ kbd { font: 11px var(--bp-font-body); border: 1px solid var(--bp-border); border
 .collapse-badge .hex-badge { width: 44px; height: 44px; }
 .collapsed-branches-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; border-top: 1px solid var(--bp-border-soft); font-size: 12px; color: var(--bp-text-muted); }
 .branch-inspector-controls { margin: 20px 0; }
+.family-hub > .hex-badge { transform: scale(calc(1 / var(--bp-graph-zoom, 1))); transform-origin: center; }
 .short-person-name { display: none; }
 .person-node[data-detail='medium'] { justify-content: center; }
 .person-node[data-detail='medium'] .portrait { width: 86px; }

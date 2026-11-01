@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Node, type Viewport } from '@xyflow/react';
 import { Crosshair, Expand, Map, Minus, Plus, RotateCcw, GitBranch, MousePointer2, UserRound } from 'lucide-react';
 import type { FamilyArchive } from '../../domain/model';
@@ -98,6 +98,7 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
   };
   return <GraphActionsContext.Provider value={graphActions}>
     <div className="graph-area" data-testid="graph-canvas" data-focus-person={ui.focusPersonId} data-mode={ui.mode}
+      style={{ '--bp-graph-zoom': viewport.zoom } as CSSProperties}
       data-viewport={`${viewport.x.toFixed(3)},${viewport.y.toFixed(3)},${viewport.zoom.toFixed(3)}`} aria-label="Породично стабло">
       {status === 'loading' && <div className="canvas-notice" role="status">Размештамо породичне приче…</div>}
       {status === 'error' && <div className="canvas-notice" role="alert">Стабло није могло да се прикаже.<button className="button" onClick={() => setRetry(value => value + 1)}>Покушај поново</button></div>}
