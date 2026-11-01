@@ -9,6 +9,7 @@ export interface PersonActions {
   focusPerson: (id: string) => void;
   openProfile: (id: string) => void;
   addRelative: (id: string) => void;
+  editPerson: (id: string) => void;
   showUnavailable: (title: string) => void;
 }
 type PersonDetailsProps = { person: Person; archive: FamilyArchive; actions: PersonActions };
@@ -54,7 +55,7 @@ export function PersonInspector({ person, archive, actions, focused, onClose }: 
       {person.biography && <section className="biography-preview"><h3>Животна прича</h3><p>{person.biography.split('\n\n')[0]}</p></section>}
       <Relations person={person} archive={archive} actions={actions} />
     </div>
-    <div className="inspector-footer"><button className="button button--soft" onClick={() => actions.addRelative(person.id)}><Plus size={17} />Додај сродника</button><button className="icon-button" aria-label="Измени особу — у припреми" title="Измена · у припреми" onClick={() => actions.showUnavailable('Измена особе')}><Pencil size={17} /></button></div>
+    <div className="inspector-footer"><button className="button button--soft" onClick={() => actions.addRelative(person.id)}><Plus size={17} />Додај сродника</button><button className="icon-button" aria-label="Измени особу" title="Измени особу" onClick={() => actions.editPerson(person.id)}><Pencil size={17} /></button></div>
   </aside>;
 }
 
@@ -67,6 +68,7 @@ export function PersonProfilePage({ person, archive, actions, onBack }: PersonDe
       {archive.events.some(event => event.personId === person.id) && <section className="profile-section"><h2>Траг кроз време</h2><Facts person={person} archive={archive} /></section>}
       {!person.biography && !archive.events.some(event => event.personId === person.id) && <p className="empty-note">Ова страница хронике тек чека своју причу.</p>}
     </div><div><Relations person={person} archive={archive} actions={{ ...actions, selectPerson: actions.openProfile }} /></div></div>
-    <p className="prototype-note">Пробни приказ профила. Сви приказани подаци су измишљени.</p>
+    <button className="button button--outlined" onClick={() => actions.editPerson(person.id)}><Pencil size={16} />Измени особу</button>
+    <p className="prototype-note">Подаци се чувају само у овом прегледачу.</p>
   </main>;
 }

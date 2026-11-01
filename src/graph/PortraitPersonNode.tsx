@@ -11,6 +11,7 @@ export type PersonFlowNode = Node<{ personId: string; focused: boolean }, 'perso
 export const PortraitPersonNode = memo(function PortraitPersonNode({ data, selected }: NodeProps<PersonFlowNode>) {
   const { archive, selectPerson, focusPerson, openProfile, addRelative } = useGraphActions();
   const person = archive.people.find(person => person.id === data.personId)!;
+  if (!person) return null;
   const name = personLabel(person);
   const years = lifeYears(archive, person.id);
   return <>

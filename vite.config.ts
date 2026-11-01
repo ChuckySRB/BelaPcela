@@ -9,5 +9,9 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
   },
-  build: { rollupOptions: { output: { manualChunks: (id: string) => id.includes('elkjs') ? 'elk' : undefined } } },
+  build: { rollupOptions: { output: { manualChunks: (id: string) => {
+    if (id.includes('elkjs')) return 'elk';
+    if (id.includes('node_modules/dexie/')) return 'storage';
+    if (id.includes('node_modules/zod/')) return 'validation';
+  } } } },
 });

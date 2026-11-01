@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { HexBadge } from '../components/HexBadge';
 import { PersonInspector } from '../features/tree/PersonDetails';
-import { GlobalSearchDialog, RelativeAddDialog } from '../features/tree/PrototypeDialogs';
+import { GlobalSearchDialog } from '../features/tree/PrototypeDialogs';
+import { RelativeEditorDialog } from '../features/people/RelativeEditorDialog';
+import { PersonEditorDialog } from '../features/people/PersonEditorDialog';
 import { demoArchive } from '../domain/fixtures';
 import { initials, lifeYears } from '../domain/people';
 import { initialUiState, uiReducer } from '../app/uiState';
@@ -30,7 +32,7 @@ describe('accessible prototype components', () => {
 
   it('omits absent optional fields from the inspector', () => {
     const archive = { ...demoArchive, people: [{ id: 'empty' }], parentChildRelationships: [], partnerships: [], events: [] };
-    const actions = { selectPerson: vi.fn(), focusPerson: vi.fn(), openProfile: vi.fn(), addRelative: vi.fn(), showUnavailable: vi.fn() };
+    const actions = { selectPerson: vi.fn(), focusPerson: vi.fn(), openProfile: vi.fn(), addRelative: vi.fn(), editPerson: vi.fn(), showUnavailable: vi.fn() };
     render(<PersonInspector archive={archive} person={archive.people[0]} actions={actions} focused={false} onClose={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Неименована особа' })).toBeInTheDocument();
     expect(screen.queryByText('Рођење')).not.toBeInTheDocument();
@@ -50,12 +52,29 @@ describe('accessible prototype components', () => {
     expect(select).toHaveBeenCalledWith('nikola');
   });
 
-  it('explains that adding a relative is a preview and does not mutate data', async () => {
+  it('previews explicit parentage and submits only after confirmation', async () => {
     const before = JSON.stringify(demoArchive);
-    render(<RelativeAddDialog name="Никола Петронић" onClose={vi.fn()} />);
+    const save = vi.fn().mockResolvedValue(undefined);
+    render(<RelativeEditorDialog anchorId="nikola" archive={demoArchive} onSave={save} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /^Дете/ }));
-    expect(screen.getByRole('status')).toHaveTextContent('Унос и чување сродника стижу у наредној фази');
-    expect(screen.getByText(/Други родитељ се бира посебно/)).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Други родитељ/ })).toHaveValue('');
+    await userEvent.type(screen.getByRole('textbox', { name: /Име и презиме/ }), 'Тест дете');
+    await userEvent.click(screen.getByRole('button', { name: /Прегледај везу/ }));
+    expect(screen.getByText(/Други родитељ није познат/)).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Потврди и сачувај' }));
+    expect(save).toHaveBeenCalledWith({ type: 'addRelative', anchorId: 'nikola', relationship: 'child', target: { newPerson: { name: 'Тест дете' } }, parentageKind: 'biological' });
     expect(JSON.stringify(demoArchive)).toBe(before);
+  });
+
+  it('reveals optional fields and keeps the draft when a save fails', async () => {
+    render(<PersonEditorDialog person={demoArchive.people.find(person => person.id === 'luka')} archive={demoArchive} onClose={vi.fn()} onSave={vi.fn().mockRejectedValue(new Error('Нема слободног простора'))} />);
+    expect(screen.queryByRole('textbox', { name: 'Надимак' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Додај податак'));
+    await userEvent.click(screen.getByRole('button', { name: 'Надимак' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Надимак' }), 'Нови надимак');
+    await userEvent.click(screen.getByRole('button', { name: 'Сачувај измене' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Нема слободног простора');
+    expect(screen.getByRole('textbox', { name: 'Надимак' })).toHaveValue('Нови надимак');
   });
 });

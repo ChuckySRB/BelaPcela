@@ -41,7 +41,7 @@ test('focus is explicit and a disconnected person remains accessible', async ({ 
   await expect(page.locator('.person-node')).toHaveCount(1);
 });
 
-test('search and relative menu work by keyboard and explain prototype scope', async ({ page }) => {
+test('search and relative menu work by keyboard and cancel without changes', async ({ page }) => {
   await page.keyboard.press('Control+k');
   const search = page.getByRole('textbox', { name: 'Претражи особе' });
   await expect(search).toBeFocused();
@@ -49,7 +49,9 @@ test('search and relative menu work by keyboard and explain prototype scope', as
   await page.getByRole('dialog').getByRole('button', { name: /Никола Петронић/ }).click();
   await page.getByRole('button', { name: 'Додај сродника', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Дете/ }).click();
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText('подаци нису промењени');
+  await expect(page.getByRole('combobox', { name: /Други родитељ/ })).toHaveValue('');
+  await page.getByRole('button', { name: /Прегледај везу/ }).click();
+  await expect(page.getByRole('dialog').getByText(/Други родитељ није познат/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(page.locator('.person-node')).toHaveCount(11);

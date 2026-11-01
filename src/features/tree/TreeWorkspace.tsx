@@ -31,28 +31,45 @@ function Canvas({ archive, ui, dispatch, actions }: WorkspaceProps) {
   const [layoutVersion, setLayoutVersion] = useState(0);
   const fittedVersion = useRef(0);
   const defaultView = useRef<Viewport | null>(null);
+  const layoutContext = useRef({ positioned, viewport, selectedId: ui.selectedPersonId, focusId: ui.focusPersonId });
+  layoutContext.current = { positioned, viewport, selectedId: ui.selectedPersonId, focusId: ui.focusPersonId };
+  const lastViewKey = useRef('');
+  const pendingViewport = useRef<Viewport | null>(null);
   const graphState = useMemo(() => ({ mode: ui.mode, focusPersonId: ui.focusPersonId, collapsedBranches: ui.collapsedBranches }), [ui.mode, ui.focusPersonId, ui.collapsedBranches]);
   const projection = useMemo(() => projectionService.project(archive, graphState), [archive, graphState]);
+  const viewKey = `${ui.mode}:${ui.focusPersonId}`;
+  const layoutSignature = JSON.stringify({ viewKey, nodes: projection.nodes.map(node => node.id), edges: projection.edges.map(edge => [edge.id, edge.source, edge.target]) });
 
   useEffect(() => {
     let cancelled = false;
+    const context = layoutContext.current;
+    const explicitViewChange = lastViewKey.current !== viewKey;
+    lastViewKey.current = viewKey;
     setStatus('loading');
     layoutService.layout(projection).then(nodes => {
       if (cancelled) return;
+      const anchorId = context.positioned.some(node => node.personId === context.selectedId) ? context.selectedId : context.focusId;
+      const previousAnchor = context.positioned.find(node => node.personId === anchorId);
+      const nextAnchor = nodes.find(node => node.personId === anchorId);
+      pendingViewport.current = !explicitViewChange && previousAnchor && nextAnchor ? {
+        ...context.viewport,
+        x: context.viewport.x + (previousAnchor.x - nextAnchor.x) * context.viewport.zoom,
+        y: context.viewport.y + (previousAnchor.y - nextAnchor.y) * context.viewport.zoom,
+      } : null;
       setPositioned(nodes); setStatus('ready'); setLayoutVersion(version => version + 1);
     }).catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
-  }, [projection, retry]);
+  }, [layoutSignature, retry]);
 
-  const nodes = useMemo<FlowNode[]>(() => positioned.map(node => ({
+  const nodes = useMemo<FlowNode[]>(() => positioned.filter(node => projection.nodes.some(current => current.id === node.id)).map(node => ({
     id: node.id, type: node.kind, position: { x: node.x, y: node.y },
     width: node.width, height: node.height,
-    data: node.kind === 'person' ? { personId: node.personId!, focused: node.personId === ui.focusPersonId } : { group: node.group! },
+    data: node.kind === 'person' ? { personId: node.personId!, focused: node.personId === ui.focusPersonId } : { group: projection.groups.find(group => group.id === node.id)! },
     selected: node.kind === 'person' && node.personId === ui.selectedPersonId,
     draggable: false, selectable: false, focusable: false,
     // Native child buttons own interaction inside an otherwise inert Flow wrapper.
     style: { pointerEvents: 'all' },
-  } as FlowNode)), [positioned, ui.focusPersonId, ui.selectedPersonId]);
+  } as FlowNode)), [positioned, projection, ui.focusPersonId, ui.selectedPersonId]);
   const edges = useMemo<RelationshipFlowEdge[]>(() => projection.edges.map(edge => ({
     ...edge, type: 'relationship', data: { relation: edge },
     ariaLabel: edge.label || 'Породична веза',
@@ -63,7 +80,9 @@ function Canvas({ archive, ui, dispatch, actions }: WorkspaceProps) {
   useEffect(() => {
     if (!layoutVersion || fittedVersion.current === layoutVersion || status !== 'ready') return;
     const frame = requestAnimationFrame(() => {
-      void flow.fitView({ padding: 0.12, maxZoom: 0.88, duration: 0 }).then(() => {
+      const anchored = pendingViewport.current;
+      pendingViewport.current = null;
+      void (anchored ? flow.setViewport(anchored, { duration: 0 }) : flow.fitView({ padding: 0.12, maxZoom: 0.88, duration: 0 })).then(() => {
         defaultView.current = flow.getViewport();
         fittedVersion.current = layoutVersion;
       });
@@ -103,7 +122,7 @@ export function TreeWorkspace(props: WorkspaceProps) {
   const allGroups = useMemo(() => projectionService.project(archive, { mode: 'whole', focusPersonId: '', collapsedBranches: [] }).groups, [archive]);
   const group = ui.inspector?.kind === 'family' ? allGroups.find(group => group.id === ui.inspector?.id) : undefined;
   const focusName = personLabel(archive.people.find(person => person.id === ui.focusPersonId)!);
-  return <main className={`tree-workspace ${ui.inspector ? 'has-inspector' : ''}`} id="main-content">
+  return <main className={`tree-workspace ${selected || group ? 'has-inspector' : ''}`} id="main-content">
     <section className="tree-main" aria-labelledby="tree-title">
       <h1 id="tree-title" className="sr-only" tabIndex={-1}>Породично стабло</h1>
       <div className="tree-toolbar"><div className="mode-switch" role="group" aria-label="Режим стабла"><button aria-pressed={ui.mode === 'whole'} onClick={() => dispatch({ type: 'mode', mode: 'whole' })}><GitBranch size={16} />Цело стабло</button><button aria-pressed={ui.mode === 'focused'} onClick={() => dispatch({ type: 'mode', mode: 'focused' })}><Crosshair size={16} />Фокусирано</button></div><span className="focus-context" title={`Централна особа: ${focusName}`}><Crosshair size={14} /><span>{focusName}</span></span></div>

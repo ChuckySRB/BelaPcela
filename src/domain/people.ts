@@ -1,6 +1,6 @@
 import type { FamilyArchive, Person } from './model';
 
-export const personLabel = (person: Person) => person.name?.trim() || 'Неименована особа';
+export const personLabel = (person?: Person) => person?.name?.trim() || 'Неименована особа';
 export function initials(person: Person) {
   return person.name?.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join('') || '·';
 }

@@ -2,15 +2,18 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { Archive, ArrowDownToLine, CalendarDays, ChevronRight, GitBranch, Info, MapPin, Redo2, Search, Settings2, Undo2, Users, ShieldCheck, Leaf, Sun, Moon } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import { HexBadge } from '../components/HexBadge';
-import { demoArchive } from '../domain/fixtures';
 import { personLabel } from '../domain/people';
 import { TreeWorkspace } from '../features/tree/TreeWorkspace';
 import { PersonProfilePage } from '../features/tree/PersonDetails';
-import { ComingSoonDialog, GlobalSearchDialog, RelativeAddDialog } from '../features/tree/PrototypeDialogs';
+import { ComingSoonDialog, GlobalSearchDialog } from '../features/tree/PrototypeDialogs';
+import { PersonEditorDialog } from '../features/people/PersonEditorDialog';
+import { RelativeEditorDialog } from '../features/people/RelativeEditorDialog';
+import { useArchive, type ArchiveStore } from './useArchive';
+import type { ArchiveCommand } from '../services/commands';
 import { initialUiState, uiReducer } from './uiState';
 import { useTheme } from './useTheme';
 
-type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'soon'; title: string } | null;
+type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
 const navigate = (path: string) => { window.location.hash = path; };
 const navigation = [
@@ -20,8 +23,14 @@ const navigation = [
 ];
 
 export function App() {
+  const store = useArchive();
+  if (!store.archive) return <main className="storage-loading"><BrandMark /><h1>BelaPčela</h1><p role={store.error ? 'alert' : 'status'}>{store.error || 'Отварамо вашу локалну збирку…'}</p>{store.error && <button className="button button--primary" onClick={() => void store.reload()}>Покушај поново</button>}</main>;
+  return <ArchiveApp store={store} />;
+}
+
+function ArchiveApp({ store }: { store: ArchiveStore }) {
   const { theme, toggleTheme } = useTheme();
-  const archive = demoArchive;
+  const archive = store.archive!;
   const [ui, dispatch] = useReducer(uiReducer, initialUiState, state => ({
     ...state, inspector: window.matchMedia('(max-width: 850px)').matches ? null : state.inspector,
   }));
@@ -32,7 +41,9 @@ export function App() {
   const focusPerson = useCallback((id: string) => dispatch({ type: 'focus', personId: id }), []);
   const openProfile = useCallback((id: string) => { dispatch({ type: 'select', personId: id }); navigate(`/person/${id}`); }, []);
   const addRelative = useCallback((personId: string) => setDialog({ kind: 'relative', personId }), []);
-  const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, showUnavailable]);
+  const editPerson = useCallback((personId: string) => setDialog({ kind: 'edit', personId }), []);
+  const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable]);
+  useEffect(() => { dispatch({ type: 'reconcile', personIds: archive.people.map(person => person.id) }); }, [archive.people]);
   useEffect(() => {
     const listener = () => setRoute(readRoute());
     window.addEventListener('hashchange', listener);
@@ -45,6 +56,13 @@ export function App() {
         event.preventDefault(); if (!dialog) setDialog({ kind: 'search' }); return;
       }
       if (dialog || typing) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (store.status === 'saving') return;
+        if (event.shiftKey && store.canRedo) void store.redo().catch(() => undefined);
+        else if (!event.shiftKey && store.canUndo) void store.undo().catch(() => undefined);
+        return;
+      }
       if (event.key === 'Escape') dispatch({ type: 'close-inspector' });
       if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.metaKey && !event.altKey && ui.selectedPersonId && route === '/tree') {
         event.preventDefault(); focusPerson(ui.selectedPersonId);
@@ -52,7 +70,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dialog, ui.selectedPersonId, focusPerson, route]);
+  }, [dialog, ui.selectedPersonId, focusPerson, route, store]);
 
   const profileId = route.startsWith('/person/') ? route.slice('/person/'.length) : null;
   const profile = archive.people.find(person => person.id === profileId);
@@ -64,14 +82,20 @@ export function App() {
     navigate('/tree');
     requestAnimationFrame(() => document.getElementById('tree-title')?.focus());
   };
+  const saveCommand = async (command: ArchiveCommand) => {
+    const result = await store.execute(command);
+    if (result.personId) selectPerson(result.personId);
+    if (command.type === 'createPerson') dispatch({ type: 'mode', mode: 'whole' });
+    setDialog(null);
+  };
   return <div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : '#tree-title')?.focus(); }}>Пређи на садржај</a>
     <header className="topbar">
       <a className="brand" href="#/tree" aria-label="BelaPčela · почетна"><BrandMark /><span><strong>BelaPčela</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
       <div className="archive-breadcrumb"><span />{archive.name}<ChevronRight size={14} /><span className="demo-label">Демо</span></div>
       <button className="global-search" aria-label="Претражи породичну збирку" onClick={() => setDialog({ kind: 'search' })}><Search size={18} /><span>Пронађите особу…</span><kbd>Ctrl K</kbd></button>
-      <div className="local-status" title="Пробна збирка · измене се још не чувају"><ShieldCheck size={17} /><span>Локални демо</span></div>
-      <div className="history-actions" aria-label="Историја измена"><button className="icon-button" disabled aria-label="Поништи — нема измена у прототипу" title="Поништи · у припреми"><Undo2 size={17} /></button><button className="icon-button" disabled aria-label="Понови — нема измена у прототипу" title="Понови · у припреми"><Redo2 size={17} /></button></div>
+      <div className={`local-status ${store.error ? 'has-error' : ''}`} role="status" title={store.error || 'Подаци се чувају само у овом прегледачу'}><ShieldCheck size={17} /><span>{store.status === 'saving' ? 'Чување…' : store.status === 'error' ? 'Није сачувано' : 'Сачувано локално'}</span></div>
+      <div className="history-actions" aria-label="Историја измена"><button className="icon-button" disabled={!store.canUndo || store.status === 'saving'} aria-label="Поништи" title={`Поништи (Ctrl+Z)${store.undoLabel ? ` · ${store.undoLabel}` : ''}`} onClick={() => void store.undo().catch(() => undefined)}><Undo2 size={17} /></button><button className="icon-button" disabled={!store.canRedo || store.status === 'saving'} aria-label="Понови" title={`Понови (Ctrl+Shift+Z)${store.redoLabel ? ` · ${store.redoLabel}` : ''}`} onClick={() => void store.redo().catch(() => undefined)}><Redo2 size={17} /></button></div>
       <button className="backup-button" aria-label="Резервна копија" title="Резервна копија · у припреми" onClick={() => showUnavailable('Резервна копија')}><ArrowDownToLine size={17} /><span>Резервна копија</span></button>
       <button className="icon-button theme-toggle" aria-label={theme === 'light' ? 'Укључи тамну тему' : 'Укључи светлу тему'} title={theme === 'light' ? 'Тамна тема' : 'Светла тема'} onClick={toggleTheme}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
       <button className="icon-button topbar-settings" aria-label="Подешавања — у припреми" onClick={() => showUnavailable('Подешавања')}><Settings2 size={19} /></button>
@@ -84,13 +108,15 @@ export function App() {
       <div className="nav-bottom"><Leaf className="nav-leaf" size={24} strokeWidth={1} /><button className="nav-item" title="О прототипу" onClick={() => showUnavailable('О збирци')}><span className="nav-icon"><Info size={20} /></span><span>О збирци</span></button></div>
     </nav>
     <div className="app-content">
-      <div className="demo-banner"><span className="demo-banner-dot" /><span>Пробна збирка</span><span className="banner-description">Измишљени подаци · преглед без чувања измена</span><span className="milestone-label">ПРВА ПОГЛАВЉА · 01</span></div>
+      <div className="demo-banner"><span className="demo-banner-dot" /><span>Пробна збирка</span><span className="banner-description">Чува се у овом прегледачу · резервне копије у припреми</span></div>
+      {store.error && <div className="storage-error" role="alert"><span>{store.error}</span><button className="text-button" onClick={() => void store.reload()}>Освежи из локалне збирке</button></div>}
       <div className="route-workspace" hidden={!!profile}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} /></div>
       {profile && <PersonProfilePage person={profile} archive={archive} actions={actions} onBack={backToTree} />}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
-    {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}
-    {dialog?.kind === 'relative' && <RelativeAddDialog name={personLabel(archive.people.find(person => person.id === dialog.personId)!)} onClose={() => setDialog(null)} />}
+    {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}
+    {dialog?.kind === 'edit' && <PersonEditorDialog archive={archive} person={archive.people.find(person => person.id === dialog.personId)} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
+    {dialog?.kind === 'relative' && <RelativeEditorDialog anchorId={dialog.personId} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'soon' && <ComingSoonDialog title={dialog.title} onClose={() => setDialog(null)} />}
   </div>;
 }
