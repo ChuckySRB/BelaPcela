@@ -1,0 +1,32 @@
+:root {
+  --bp-forest: #244B3A;
+  --bp-forest-deep: #19392D;
+  --bp-sage: #728E77;
+  --bp-brass: #B59052;
+  --bp-brass-light: #E7D9B7;
+  --bp-brass-ink: #795d2f;
+  --bp-paper: #F7F3EA;
+  --bp-parchment: #EEE7D8;
+  --bp-card: #FFFCF5;
+  --bp-ink: #273C30;
+  --bp-text-muted: #675F52;
+  --bp-border: #D4C7AE;
+  --bp-danger: #A44242;
+  --bp-radius-sm: 6px;
+  --bp-radius-md: 10px;
+  --bp-radius-lg: 16px;
+  --bp-shadow-card: 0 3px 16px rgba(38,49,37,.09);
+  --bp-font-body: 'PT Sans', 'Segoe UI', Arial, sans-serif;
+  --bp-font-display: 'PT Serif', Georgia, serif;
+  --bp-nav-width: 76px;
+  --bp-inspector-width: 364px;
+  --bp-topbar-height: 86px;
+  --bp-focus-ring: 0 0 0 3px var(--bp-paper), 0 0 0 6px var(--bp-forest);
+  font-family: var(--bp-font-body);
+  color: var(--bp-ink);
+  background: var(--bp-paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
