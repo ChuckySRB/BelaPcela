@@ -18,6 +18,10 @@ describe('functional text contrast (WCAG AA)', () => {
     ['brass label on paper', '#795d2f', '#F7F3EA'],
     ['prototype banner', '#625333', '#EEE7D8'],
     ['active navigation', '#244B3A', '#F4F0E6'],
+    ['dark primary text', '#f1eddf', '#142c23'],
+    ['dark secondary text', '#c3c9b7', '#1c372c'],
+    ['dark primary button', '#173b2e', '#eee9d8'],
+    ['dark brass labels', '#dec48f', '#142c23'],
   ])('%s', (_label, foreground, background) => {
     expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
   });

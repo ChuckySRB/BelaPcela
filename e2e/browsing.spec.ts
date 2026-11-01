@@ -17,13 +17,13 @@ test('selection keeps focus and viewport, and profile round-trip preserves the v
   await page.mouse.move(300, 250);
   await expect.poll(async () => Number((await canvas.getAttribute('data-viewport'))!.split(',')[2])).toBeGreaterThan(initialZoom);
   const before = await canvas.getAttribute('data-viewport');
-  await page.locator('.person-node').filter({ hasText: 'Вера Петровић' }).click();
+  await page.locator('.person-node').filter({ hasText: 'Вера Петронић' }).click();
   await expect(canvas).toHaveAttribute('data-focus-person', 'nikola');
-  await expect(page.getByRole('complementary', { name: 'Подаци о изабраној особи' }).getByRole('heading', { name: 'Вера Петровић' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Подаци о изабраној особи' }).getByRole('heading', { name: 'Вера Петронић' })).toBeVisible();
   await expect(canvas).toHaveAttribute('data-viewport', before!);
   await page.getByRole('button', { name: 'Отвори профил', exact: true }).click();
   await expect(page).toHaveURL(/#\/person\/vera$/);
-  await expect(page.getByRole('heading', { name: 'Вера Петровић', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вера Петронић', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Назад на стабло' }).click();
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveAttribute('data-viewport', before!);
@@ -46,7 +46,7 @@ test('search and relative menu work by keyboard and explain prototype scope', as
   const search = page.getByRole('textbox', { name: 'Претражи особе' });
   await expect(search).toBeFocused();
   await search.fill('ниџа');
-  await page.getByRole('dialog').getByRole('button', { name: /Никола Петровић/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /Никола Петронић/ }).click();
   await page.getByRole('button', { name: 'Додај сродника', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Дете/ }).click();
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('подаци нису промењени');
@@ -60,16 +60,16 @@ test('keyboard selection opens a closed inspector without moving the graph', asy
   const canvas = page.getByTestId('graph-canvas');
   const before = await canvas.getAttribute('data-viewport');
   const positions = await page.locator('.react-flow__node').evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
-  await page.locator('.person-node').filter({ hasText: 'Вера Петровић' }).focus();
+  await page.locator('.person-node').filter({ hasText: 'Вера Петронић' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('complementary', { name: 'Подаци о изабраној особи' }).getByRole('heading', { name: 'Вера Петровић' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Подаци о изабраној особи' }).getByRole('heading', { name: 'Вера Петронић' })).toBeVisible();
   await expect(canvas).toHaveAttribute('data-viewport', before!);
   await expect(canvas).toHaveAttribute('data-focus-person', 'nikola');
   expect(await page.locator('.react-flow__node').evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(positions);
 });
 
 test('single-parent hub explains missing parent without inventing a partner', async ({ page }) => {
-  await page.getByRole('button', { name: /Породична веза: Вера Петровић/ }).click();
+  await page.getByRole('button', { name: /Породична веза: Вера Петронић/ }).click();
   const inspector = page.getByRole('complementary', { name: 'Подаци о породичној вези' });
   await expect(inspector.getByText(/Други родитељ није познат/)).toBeVisible();
   await expect(inspector.getByText('Брак', { exact: true })).not.toBeVisible();
@@ -97,4 +97,19 @@ test('mobile sheet closes and the canvas has no horizontal page overflow', async
   await expect(page.getByTestId('graph-canvas')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByRole('button', { name: 'Увећај', exact: true })).toBeVisible();
+});
+
+test('compact canvas and persistent dark theme', async ({ page }, testInfo) => {
+  await expect(page.getByText('Корени памте.', { exact: true })).not.toBeVisible();
+  const canvas = page.getByTestId('graph-canvas');
+  expect((await canvas.boundingBox())!.y).toBeLessThan(230);
+  const view = await canvas.getAttribute('data-viewport');
+  await page.getByRole('button', { name: 'Укључи тамну тему' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(canvas).toHaveAttribute('data-viewport', view!);
+  await page.screenshot({ path: testInfo.outputPath('dark-theme.png'), fullPage: true });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Укључи светлу тему' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });

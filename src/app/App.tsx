@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { Archive, ArrowDownToLine, CalendarDays, ChevronRight, GitBranch, Info, MapPin, Redo2, Search, Settings2, Undo2, Users, ShieldCheck, Leaf } from 'lucide-react';
+import { Archive, ArrowDownToLine, CalendarDays, ChevronRight, GitBranch, Info, MapPin, Redo2, Search, Settings2, Undo2, Users, ShieldCheck, Leaf, Sun, Moon } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import { HexBadge } from '../components/HexBadge';
 import { demoArchive } from '../domain/fixtures';
@@ -8,6 +8,7 @@ import { TreeWorkspace } from '../features/tree/TreeWorkspace';
 import { PersonProfilePage } from '../features/tree/PersonDetails';
 import { ComingSoonDialog, GlobalSearchDialog, RelativeAddDialog } from '../features/tree/PrototypeDialogs';
 import { initialUiState, uiReducer } from './uiState';
+import { useTheme } from './useTheme';
 
 type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
@@ -19,6 +20,7 @@ const navigation = [
 ];
 
 export function App() {
+  const { theme, toggleTheme } = useTheme();
   const archive = demoArchive;
   const [ui, dispatch] = useReducer(uiReducer, initialUiState, state => ({
     ...state, inspector: window.matchMedia('(max-width: 850px)').matches ? null : state.inspector,
@@ -71,6 +73,7 @@ export function App() {
       <div className="local-status" title="Пробна збирка · измене се још не чувају"><ShieldCheck size={17} /><span>Локални демо</span></div>
       <div className="history-actions" aria-label="Историја измена"><button className="icon-button" disabled aria-label="Поништи — нема измена у прототипу" title="Поништи · у припреми"><Undo2 size={17} /></button><button className="icon-button" disabled aria-label="Понови — нема измена у прототипу" title="Понови · у припреми"><Redo2 size={17} /></button></div>
       <button className="backup-button" aria-label="Резервна копија" title="Резервна копија · у припреми" onClick={() => showUnavailable('Резервна копија')}><ArrowDownToLine size={17} /><span>Резервна копија</span></button>
+      <button className="icon-button theme-toggle" aria-label={theme === 'light' ? 'Укључи тамну тему' : 'Укључи светлу тему'} title={theme === 'light' ? 'Тамна тема' : 'Светла тема'} onClick={toggleTheme}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
       <button className="icon-button topbar-settings" aria-label="Подешавања — у припреми" onClick={() => showUnavailable('Подешавања')}><Settings2 size={19} /></button>
     </header>
     <nav className="main-nav" aria-label="Главна навигација">

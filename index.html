@@ -7,6 +7,12 @@
     <meta name="description" content="BelaPčela — породични музеј. Локални прототип породичног стабла." />
     <link rel="icon" type="image/svg+xml" href="/seal.svg" />
     <title>BelaPčela · Породични музеј</title>
+    <script>
+      try {
+        const preference = localStorage.getItem('belapcela-theme');
+        document.documentElement.dataset.theme = preference === 'dark' || (!preference && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      } catch { document.documentElement.dataset.theme = 'light'; }
+    </script>
   </head>
   <body>
     <div id="root"></div>

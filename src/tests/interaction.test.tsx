@@ -46,13 +46,13 @@ describe('accessible prototype components', () => {
     render(<GlobalSearchDialog archive={demoArchive} onSelect={select} onClose={vi.fn()} />);
     await userEvent.type(screen.getByRole('textbox', { name: 'Претражи особе' }), 'ниџа');
     expect(screen.getByRole('status')).toHaveTextContent('1 особа');
-    await userEvent.click(screen.getByRole('button', { name: /Никола Петровић/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Никола Петронић/ }));
     expect(select).toHaveBeenCalledWith('nikola');
   });
 
   it('explains that adding a relative is a preview and does not mutate data', async () => {
     const before = JSON.stringify(demoArchive);
-    render(<RelativeAddDialog name="Никола Петровић" onClose={vi.fn()} />);
+    render(<RelativeAddDialog name="Никола Петронић" onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /^Дете/ }));
     expect(screen.getByRole('status')).toHaveTextContent('Унос и чување сродника стижу у наредној фази');
     expect(screen.getByText(/Други родитељ се бира посебно/)).toBeInTheDocument();
