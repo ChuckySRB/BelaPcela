@@ -8,6 +8,7 @@ export interface GraphActions {
   openProfile: (id: string) => void;
   addRelative: (id: string) => void;
   inspectFamily: (id: string) => void;
+  toggleBranch: (id: string) => void;
 }
 export const GraphActionsContext = createContext<GraphActions | null>(null);
 export function useGraphActions() {

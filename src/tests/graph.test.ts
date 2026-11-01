@@ -8,6 +8,44 @@ const service = new GraphProjectionService();
 const whole = { mode: 'whole' as const, focusPersonId: 'nikola', collapsedBranches: [] };
 
 describe('genealogy projection', () => {
+  it('collapses recorded descendants with unique counts and no canonical changes', () => {
+    const before = JSON.stringify(demoArchive);
+    const id = 'family:["ana","nikola"]';
+    const collapsed = service.project(demoArchive, { ...whole, collapsedBranches: [id] });
+    expect(collapsed.visiblePersonIds).toHaveLength(9);
+    expect(collapsed.hiddenPersonIds).toEqual(['luka', 'sara']);
+    expect(collapsed.branches[id]).toEqual({ collapsed: true, descendantCount: 2, hiddenCount: 2 });
+    expect(collapsed.visiblePersonIds).toContain('mia');
+    expect(collapsed.visiblePersonIds).toContain('danica');
+    const nodeIds = new Set(collapsed.nodes.map(node => node.id));
+    expect(collapsed.edges.every(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target))).toBe(true);
+    expect(JSON.stringify(demoArchive)).toBe(before);
+    expect(service.project(demoArchive, whole).visiblePersonIds).toHaveLength(11);
+  });
+  it('retains focused ancestry and nested collapse state without counting people twice', () => {
+    const inner = 'family:["ana","nikola"]';
+    const outer = 'family:["jovan","milena"]';
+    const state = { ...whole, collapsedBranches: [inner, outer] };
+    const result = service.project(demoArchive, state);
+    expect(result.hiddenPersonIds).toHaveLength(5);
+    expect(result.visiblePersonIds).toEqual(expect.arrayContaining(['nikola', 'jovan', 'milena']));
+    expect(result.branches[inner].hiddenCount).toBe(2);
+    expect(result.branches[outer].hiddenCount).toBe(5);
+    const refocused = service.project(demoArchive, { ...state, mode: 'focused', focusPersonId: 'luka' });
+    expect(refocused.visiblePersonIds).toEqual(expect.arrayContaining(['luka', 'nikola', 'ana', 'jovan', 'milena']));
+    expect(refocused.branches[inner].collapsed).toBe(true);
+    expect(refocused.hiddenPersonIds).not.toContain('luka');
+  });
+  it('collapses arbitrarily deep descendant branches using iterative traversal', () => {
+    const archive: FamilyArchive = { ...demoArchive,
+      people: Array.from({ length: 1000 }, (_, i) => ({ id: `p${i}` })),
+      parentChildRelationships: Array.from({ length: 999 }, (_, i) => ({ id: `r${i}`, parentId: `p${i}`, childId: `p${i + 1}`, kind: 'biological' })),
+      partnerships: [], kinshipAssertions: [],
+    };
+    const result = service.project(archive, { mode: 'focused', focusPersonId: 'p0', collapsedBranches: ['family:["p0"]'] });
+    expect(result.visiblePersonIds).toEqual(['p0']);
+    expect(result.branches['family:["p0"]'].hiddenCount).toBe(999);
+  });
   it('includes disconnected people and keeps virtual hubs out of canonical people', () => {
     const projection = service.project(demoArchive, whole);
     expect(projection.visiblePersonIds).toHaveLength(11);

@@ -18,10 +18,15 @@ export type UiAction =
   | { type: 'mode'; mode: GraphMode }
   | { type: 'inspect-family'; groupId: string }
   | { type: 'reconcile'; personIds: string[] }
+  | { type: 'toggle-branch'; groupId: string }
+  | { type: 'expand-all' }
   | { type: 'close-inspector' };
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
   switch (action.type) {
+    case 'toggle-branch': return { ...state, collapsedBranches: state.collapsedBranches.includes(action.groupId)
+      ? state.collapsedBranches.filter(id => id !== action.groupId) : [...state.collapsedBranches, action.groupId] };
+    case 'expand-all': return { ...state, collapsedBranches: [] };
     case 'reconcile': {
       const exists = (id: string | null) => !!id && action.personIds.includes(id);
       const focusPersonId = exists(state.focusPersonId) ? state.focusPersonId : action.personIds[0] || '';

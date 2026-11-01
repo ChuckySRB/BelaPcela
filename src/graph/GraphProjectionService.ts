@@ -2,6 +2,7 @@ import type { FamilyArchive } from '../domain/model';
 import { parentageLabels } from '../domain/people';
 import type { FamilyGroup, GraphProjection, GraphViewState, VisualEdge } from './types';
 import { HUB_SIZE, PORTRAIT_SIZE } from './types';
+import { branchVisibility } from './branchVisibility';
 
 export class GraphProjectionService {
   /** Iterative traversal of the entire connected network; deliberately no depth limit. */
@@ -33,7 +34,6 @@ export class GraphProjectionService {
     const visible = state.mode === 'whole'
       ? new Set(archive.people.map(person => person.id))
       : this.connectedPeople(archive, state.focusPersonId);
-    const visiblePersonIds = archive.people.filter(person => visible.has(person.id)).map(person => person.id);
     const groupsByParents = new Map<string, FamilyGroup>();
     const ensureGroup = (parentIds: string[]) => {
       const sorted = [...parentIds].sort();
@@ -61,6 +61,12 @@ export class GraphProjectionService {
       }
     }
     const groups = [...groupsByParents.values()];
+    const { hidden, branches } = branchVisibility(archive, groups, visible, state);
+    const visiblePersonIds = archive.people.filter(person => visible.has(person.id) && !hidden.has(person.id)).map(person => person.id);
+    const renderedPeople = new Set(visiblePersonIds);
+    const renderedGroups = groups.filter(group => group.parentIds.some(id => renderedPeople.has(id)) && (
+      group.childIds.some(id => renderedPeople.has(id)) || group.partnershipIds.length || branches[group.id].collapsed
+    ));
     const edges: VisualEdge[] = [];
     for (const group of groups) {
       group.parentIds.forEach(parentId => edges.push({
@@ -89,8 +95,12 @@ export class GraphProjectionService {
     return {
       nodes: [
         ...visiblePersonIds.map(personId => ({ id: `person:${personId}`, kind: 'person' as const, personId, ...PORTRAIT_SIZE })),
-        ...groups.map(group => ({ id: group.id, kind: 'family' as const, group, ...HUB_SIZE })),
-      ], edges, groups, visiblePersonIds,
+        ...renderedGroups.map(group => ({ id: group.id, kind: 'family' as const, group, ...HUB_SIZE })),
+      ], edges: edges.filter(edge => {
+        const exists = (id: string) => id.startsWith('person:') ? renderedPeople.has(id.slice(7)) : renderedGroups.some(group => group.id === id);
+        return exists(edge.source) && exists(edge.target);
+      }), groups, visiblePersonIds, branches,
+      hiddenPersonIds: archive.people.filter(person => hidden.has(person.id)).map(person => person.id),
       disconnectedPersonIds: visiblePersonIds.filter(id => adjacency.get(id)?.size === 0),
     };
   }

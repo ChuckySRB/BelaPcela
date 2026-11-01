@@ -1,10 +1,11 @@
 import type { ParentageKind } from '../domain/model';
+import type { BranchSummary } from './branchVisibility';
 
 export type GraphMode = 'whole' | 'focused';
 export interface GraphViewState {
   mode: GraphMode;
   focusPersonId: string;
-  /** Reserved presentation state; branch controls arrive in milestone 3. */
+  /** Virtual family hub IDs; presentation state is never persisted as genealogy. */
   collapsedBranches: readonly string[];
 }
 export interface FamilyGroup {
@@ -37,6 +38,8 @@ export interface GraphProjection {
   groups: FamilyGroup[];
   visiblePersonIds: string[];
   disconnectedPersonIds: string[];
+  hiddenPersonIds: string[];
+  branches: Record<string, BranchSummary>;
 }
 export interface PositionedNode extends VisualNode { x: number; y: number }
 export interface LayoutService {
