@@ -1,11 +1,17 @@
 import { z } from 'zod';
 import type { FamilyArchive, LifeEvent, Person } from '../domain/model';
 import { DomainError, idSchema, parentageSchema, partnershipSchema, personDetailsSchema, validateArchive, yearSchema } from '../domain/validation';
+import { eventDetailsSchema, placeDetailsSchema, mediaDetailsSchema } from '../domain/catalogSchemas';
+import { eventHasSubject } from '../domain/events';
 
 export const relativeKindSchema = z.enum(['parent', 'child', 'partner', 'sibling']);
 export type RelativeKind = z.infer<typeof relativeKindSchema>;
 const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional(), birthApproximate: z.boolean().optional(), deathApproximate: z.boolean().optional() };
 const commandSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('savePlace'), placeId: idSchema.optional(), details: placeDetailsSchema.partial() }),
+  z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial() }),
+  z.strictObject({ type: z.literal('addMedia'), items: z.array(z.strictObject({ id: idSchema, ...mediaDetailsSchema.shape })).min(1).max(20) }),
+  z.strictObject({ type: z.literal('updateMedia'), mediaId: idSchema, details: mediaDetailsSchema.omit({ src: true, originalFilename: true, mimeType: true, size: true }) }),
   z.strictObject({ type: z.literal('createPerson'), person: personDetailsSchema, ...lifeYearsFields }),
   z.strictObject({ type: z.literal('updatePerson'), personId: idSchema, changes: personDetailsSchema, ...lifeYearsFields }),
   z.strictObject({
@@ -15,8 +21,8 @@ const commandSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type ArchiveCommand = z.infer<typeof commandSchema>;
-export interface CommandResult { archive: FamilyArchive; personId?: string }
-export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника' };
+export interface CommandResult { archive: FamilyArchive; personId?: string; recordId?: string }
+export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке' };
 
 function cleanDetails(details: z.infer<typeof personDetailsSchema>) {
   return Object.fromEntries(Object.entries(details).map(([key, value]) => [key,
@@ -38,6 +44,28 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   const command = parsed.data;
   const next: FamilyArchive = structuredClone(archive);
   let personId: string | undefined;
+  let recordId: string | undefined;
+  if (command.type === 'savePlace' || command.type === 'saveEvent') {
+    const collection = command.type === 'savePlace' ? next.places : next.events;
+    const id = command.type === 'savePlace' ? command.placeId : command.eventId;
+    const old = id ? collection.find(record => record.id === id) : undefined;
+    if (id && !old) throw new DomainError('Запис више није у збирци.');
+    recordId = id || newId();
+    const record = { ...old, ...command.details, id: recordId };
+    if (command.type === 'savePlace') {
+      if (old) next.places = next.places.map(item => item.id === recordId ? record as FamilyArchive['places'][number] : item);
+      else next.places.push(record as FamilyArchive['places'][number]);
+    } else {
+      if (old) next.events = next.events.map(item => item.id === recordId ? record as LifeEvent : item);
+      else next.events.push(record as LifeEvent);
+    }
+  }
+  if (command.type === 'addMedia') next.media.push(...command.items);
+  if (command.type === 'updateMedia') {
+    const item = next.media.find(item => item.id === command.mediaId);
+    if (!item) throw new DomainError('Датотека није у збирци.');
+    Object.assign(item, { title: undefined, tags: undefined, links: undefined }, command.details);
+  }
   const requirePerson = (id: string) => {
     const person = next.people.find(person => person.id === id);
     if (!person) throw new DomainError('Особа више није у овој збирци.');
@@ -49,18 +77,18 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   };
   const setYear = (personId: string, type: LifeEvent['type'], year: number | null | undefined, approximate?: boolean) => {
     if (year === undefined && approximate === undefined) return;
-    const event = next.events.find(event => event.personId === personId && event.type === type);
+    const event = next.events.find(event => eventHasSubject(event, personId) && event.type === type);
     if (event) {
-      if (year === null) { delete event.date; if (!event.placeId) next.events = next.events.filter(item => item.id !== event.id); }
+      if (year === null) { delete event.date; }
       else {
-        if (year !== undefined && event.date?.year !== year) event.date = { year };
+        if (year !== undefined && event.date?.year !== year) event.date = { ...event.date, year };
         if (approximate !== undefined) {
           if (!event.date) { if (approximate) throw new DomainError('Прво унесите годину за приближан датум.'); }
           else if (approximate) event.date.approximate = true;
           else delete event.date.approximate;
         }
       }
-    } else if (year !== null && year !== undefined) next.events.push({ id: newId(), type, personId, date: { year, ...(approximate ? { approximate: true } : {}) } });
+    } else if (year !== null && year !== undefined) next.events.push({ id: newId(), type, participants: [{ personId, role: 'subject' }], date: { year, ...(approximate ? { approximate: true } : {}) } });
     else if (approximate) throw new DomainError('Прво унесите годину за приближан датум.');
   };
   if (command.type === 'createPerson') {
@@ -90,5 +118,5 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
     if (command.relationship === 'partner') next.partnerships.push({ id: newId(), personIds: [command.anchorId, personId], kind: command.partnershipKind || 'unspecified' });
     if (command.relationship === 'sibling') next.kinshipAssertions.push({ id: newId(), personIds: [command.anchorId, personId], label: 'Брат / сестра' });
   }
-  return { archive: validateArchive(next), personId };
+  return { archive: validateArchive(next), personId, recordId };
 }

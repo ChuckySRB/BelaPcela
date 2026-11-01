@@ -5,6 +5,7 @@ import { ArrowUpRight, X } from 'lucide-react';
 import { Portrait } from '../components/Portrait';
 import type { FamilyArchive, Person } from '../domain/model';
 import { lifeYears, personLabel } from '../domain/people';
+import { eventHasSubject } from '../domain/events';
 
 export function usePersonPreview(trigger: RefObject<HTMLButtonElement | null>) {
   const [preview, setPreview] = useState<'pointer' | 'keyboard' | null>(null);
@@ -57,7 +58,7 @@ export function PersonHoverCard({ person, archive, trigger, keyboard, onClose, o
   const width = Math.min(300, window.innerWidth - 24);
   const left = Math.max(12, Math.min(window.innerWidth - width - 12, bounds.right + width + 14 < window.innerWidth ? bounds.right + 12 : bounds.left - width - 12));
   const top = Math.max(12, Math.min(bounds.top, window.innerHeight - 340));
-  const birth = archive.events.find(event => event.personId === person.id && event.type === 'birth');
+  const birth = archive.events.find(event => eventHasSubject(event, person.id) && event.type === 'birth');
   const place = archive.places.find(place => place.id === birth?.placeId);
   return createPortal(<div ref={panel} className="person-hover-card" role="dialog" aria-label={`Кратак преглед: ${personLabel(person)}`} style={{ left, top, width }}
     onPointerEnter={onEnter} onPointerLeave={onLeave} onFocus={onEnter}

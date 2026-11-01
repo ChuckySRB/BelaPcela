@@ -5,6 +5,7 @@ import type { FamilyArchive, Person } from '../../domain/model';
 import type { ArchiveCommand } from '../../services/commands';
 import type { PersonDetails } from '../../domain/validation';
 import { ProfileCollectionsEditor, collectionChanges, collectionDraft, type ProfileCollectionsDraft } from './ProfileCollectionsEditor';
+import { eventHasSubject } from '../../domain/events';
 
 type Field = 'name' | 'nickname' | 'occupation' | 'biography' | 'birthYear' | 'deathYear' | 'maidenName' | 'identityNote';
 type Draft = Record<Field, string>;
@@ -27,12 +28,12 @@ export function PersonEditorForm({ person, archive, onClose, onSave, onReload, o
   useEffect(() => { form.current?.querySelector<HTMLInputElement>('[data-autofocus]')?.focus({ preventScroll: true }); }, []);
   const [draft, setDraft] = useState<Draft>(() => ({
     name: person?.name || '', nickname: person?.nickname || '', occupation: person?.occupation || '', biography: person?.biography || '',
-    birthYear: String(archive.events.find(event => event.personId === person?.id && event.type === 'birth')?.date?.year ?? ''),
-    deathYear: String(archive.events.find(event => event.personId === person?.id && event.type === 'death')?.date?.year ?? ''),
+    birthYear: String(archive.events.find(event => eventHasSubject(event, person?.id) && event.type === 'birth')?.date?.year ?? ''),
+    deathYear: String(archive.events.find(event => eventHasSubject(event, person?.id) && event.type === 'death')?.date?.year ?? ''),
     maidenName: person?.maidenName || '', identityNote: person?.identityNote || '',
   }));
   const initialDraft = useRef(draft);
-  const [approximate, setApproximate] = useState(() => ({ birth: !!archive.events.find(event => event.personId === person?.id && event.type === 'birth')?.date?.approximate, death: !!archive.events.find(event => event.personId === person?.id && event.type === 'death')?.date?.approximate }));
+  const [approximate, setApproximate] = useState(() => ({ birth: !!archive.events.find(event => eventHasSubject(event, person?.id) && event.type === 'birth')?.date?.approximate, death: !!archive.events.find(event => eventHasSubject(event, person?.id) && event.type === 'death')?.date?.approximate }));
   const initialApproximate = useRef(approximate);
   const [portraitId, setPortraitId] = useState(person?.preferredMediaId || '');
   const initialPortrait = useRef(portraitId);

@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { eventHasPerson } from '../domain/events';
 import { demoArchive } from '../domain/fixtures';
 import { applyCommand } from '../services/commands';
 import { ArchiveRepository } from '../storage/ArchiveRepository';
@@ -21,18 +22,21 @@ describe('profile schema upgrade', () => {
     await legacy.table('archives').put({ id: demoArchive.id, name: 'Моја постојећа збирка', schemaVersion: 1, revision: 7, createdAt: timestamp, updatedAt: timestamp });
     for (const key of collectionKeys) {
       const records = demoArchive[key] || [];
-      if (records.length) await legacy.table(key).bulkPut(records.map((record, order) => ({ ...record, archiveId: demoArchive.id, order, createdAt: timestamp, updatedAt: timestamp })));
+      if (records.length) await legacy.table(key).bulkPut(records.map((record, order) => {
+        const legacyRecord = key === 'events' && 'participants' in record ? (() => { const { participants, ...event } = record; return { ...event, personId: participants[0].personId }; })() : record;
+        return { ...legacyRecord, archiveId: demoArchive.id, order, createdAt: timestamp, updatedAt: timestamp };
+      }));
     }
     legacy.close();
     const upgraded = createFamilyDatabase(name); databases.push(upgraded);
     const snapshot = await new ArchiveRepository(upgraded).initialize(demoArchive);
-    expect(snapshot.revision).toBe(8);
+    expect(snapshot.revision).toBe(9);
     expect(snapshot.archive.name).toBe('Моја постојећа збирка');
     expect(snapshot.archive.people.map(person => person.id)).toEqual(demoArchive.people.map(person => person.id));
     expect(snapshot.archive.people.every(person => person.createdAt === timestamp && person.updatedAt === timestamp)).toBe(true);
     expect(snapshot.archive.events.find(event => event.id === 'b-n')?.date?.year).toBe(1952);
     expect(snapshot.archive.parentChildRelationships).toHaveLength(demoArchive.parentChildRelationships.length);
-    expect((await upgraded.table('archives').get(demoArchive.id)).schemaVersion).toBe(2);
+    expect((await upgraded.table('archives').get(demoArchive.id)).schemaVersion).toBe(3);
   });
 });
 
@@ -47,7 +51,7 @@ describe('richer profile commands and display', () => {
     }).archive);
     const loaded = await repository.load();
     expect(loaded.archive).toEqual(result.after.archive);
-    expect(loaded.archive.events.filter(event => event.personId === 'nikola' && event.type === 'birth')).toHaveLength(1);
+    expect(loaded.archive.events.filter(event => eventHasPerson(event, 'nikola') && event.type === 'birth')).toHaveLength(1);
     expect(loaded.archive.events.find(event => event.id === 'b-n')).toMatchObject({ placeId: 'belgrade', date: { year: 1952, approximate: true } });
     expect(searchPeople(loaded.archive.people, 'Nikola Petronić').map(person => person.id)).toEqual(['nikola']);
     expect(searchPeople(loaded.archive.people, 'Николић').map(person => person.id)).toEqual(['nikola']);
@@ -64,7 +68,7 @@ describe('richer profile commands and display', () => {
   it('creates person and approximate year in a single command, and retains omitted optional fields on edits', () => {
     const result = applyCommand(demoArchive, { type: 'createPerson', person: { name: 'Тест', aliases: ['Test'] }, birthYear: 1900, birthApproximate: true });
     const person = result.archive.people.find(person => person.id === result.personId)!;
-    expect(result.archive.events.find(event => event.personId === person.id)?.date).toEqual({ year: 1900, approximate: true });
+    expect(result.archive.events.find(event => eventHasPerson(event, person.id))?.date).toEqual({ year: 1900, approximate: true });
     const changed = applyCommand(result.archive, { type: 'updatePerson', personId: person.id, changes: { nickname: 'Т' } });
     expect(changed.archive.people.find(item => item.id === person.id)?.aliases).toEqual(['Test']);
   });
@@ -78,7 +82,7 @@ describe('richer profile commands and display', () => {
     expect(screen.getByText('Никољдан')).toBeInTheDocument();
   });
   it('shows only meaningful events and a chronologically sorted timeline', () => {
-    expect(profileEvents({ ...demoArchive, events: [{ id: 'blank', type: 'death', personId: 'nikola' }] }, 'nikola')).toEqual([]);
+    expect(profileEvents({ ...demoArchive, events: [{ id: 'blank', type: 'death', participants: [{ personId: 'nikola', role: 'subject' }] }] }, 'nikola')).toEqual([]);
     render(<LifeTimeline archive={demoArchive} person={{ ...demoArchive.people.find(person => person.id === 'nikola')!, occupations: [{ id: 'o', title: 'Архитекта', fromYear: 1975, toYear: 2010 }] }} />);
     expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual(['1952.РођењеБеоград, Србија', '1975.АрхитектаДо 2010. године']);
   });

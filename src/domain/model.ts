@@ -39,14 +39,42 @@ export interface KinshipAssertion extends Entity {
   label: string;
 }
 
-export interface Place extends Entity { name: string }
-export interface LifeEvent extends Entity {
-  type: 'birth' | 'death';
-  personId: string;
-  date?: { year: number; approximate?: boolean };
-  placeId?: string;
+export interface Place extends Entity {
+  name: string;
+  alternativeNames?: string[];
+  coordinates?: { latitude: number; longitude: number };
+  address?: string;
+  kind?: 'settlement' | 'region' | 'country' | 'building' | 'cemetery' | 'other';
+  parentPlaceId?: string;
+  description?: string;
 }
-export interface Media extends Entity { src: string; alt: string }
+export interface GenealogyDate {
+  year: number; month?: number; day?: number; approximate?: boolean;
+  endYear?: number; endMonth?: number; endDay?: number;
+}
+export type EventType = 'birth' | 'death' | 'marriage' | 'residence' | 'migration' | 'work' | 'burial' | 'other';
+export interface EventParticipant { personId: string; role: string }
+export interface LifeEvent extends Entity {
+  type: EventType;
+  title?: string;
+  participants: EventParticipant[];
+  date?: GenealogyDate;
+  placeId?: string;
+  description?: string;
+  sourceIds?: string[];
+}
+export type MediaLink = { entityType: 'person' | 'event' | 'place' | 'source'; entityId: string };
+export interface Media extends Entity {
+  alt: string;
+  /** Older local references are retained; newly imported media always uses mediaFiles Blobs. */
+  src?: string;
+  title?: string;
+  originalFilename?: string;
+  mimeType?: string;
+  size?: number;
+  tags?: string[];
+  links?: MediaLink[];
+}
 export interface Source extends Entity { title?: string; citation?: string }
 
 export interface FamilyArchive {

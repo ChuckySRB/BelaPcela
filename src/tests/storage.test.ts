@@ -124,6 +124,6 @@ describe('domain command rules', () => {
   it('validates optional person fields and rejects malformed or duplicate canonical records', () => {
     expect(() => validateArchive({ ...demoArchive, people: [...demoArchive.people, demoArchive.people[0]] })).toThrow('јединствени');
     expect(() => applyCommand(demoArchive, { type: 'createPerson', person: { name: 'a'.repeat(201) } })).toThrow();
-    expect(() => validateArchive({ ...demoArchive, events: [...demoArchive.events, { id: 'bad', type: 'birth', personId: 'missing' }] })).toThrow();
+    expect(() => validateArchive({ ...demoArchive, events: [...demoArchive.events, { id: 'bad', type: 'birth', participants: [{ personId: 'missing', role: 'subject' }] }] })).toThrow();
   });
 });

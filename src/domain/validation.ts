@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import type { FamilyArchive } from './model';
+import { eventHasSubject, dateBounds } from './events';
+import { eventDetailsSchema, mediaDetailsSchema, placeDetailsSchema } from './catalogSchemas';
 
 export class DomainError extends Error {}
 export const idSchema = z.string().min(1).max(200);
@@ -36,9 +38,9 @@ const archiveSchema = z.strictObject({
   parentChildRelationships: z.array(z.strictObject({ ...entity, parentId: idSchema, childId: idSchema, kind: parentageSchema })),
   partnerships: z.array(z.strictObject({ ...entity, personIds: z.tuple([idSchema, idSchema]), kind: partnershipSchema, fromYear: yearSchema.optional() })),
   kinshipAssertions: z.array(z.strictObject({ ...entity, personIds: z.tuple([idSchema, idSchema]), label: text })),
-  events: z.array(z.strictObject({ ...entity, type: z.enum(['birth', 'death']), personId: idSchema, date: z.strictObject({ year: yearSchema, approximate: z.boolean().optional() }).optional(), placeId: idSchema.optional() })),
-  places: z.array(z.strictObject({ ...entity, name: text })),
-  media: z.array(z.strictObject({ ...entity, src: z.string(), alt: z.string() })),
+  events: z.array(z.strictObject({ ...entity, ...eventDetailsSchema.shape })),
+  places: z.array(z.strictObject({ ...entity, ...placeDetailsSchema.shape })),
+  media: z.array(z.strictObject({ ...entity, ...mediaDetailsSchema.shape })),
   sources: z.array(z.strictObject({ ...entity, title: text.optional(), citation: z.string().max(20000).optional() })).optional(),
 });
 
@@ -85,11 +87,35 @@ export function validateArchive(input: unknown): FamilyArchive {
   }
   const eventKeys = new Set<string>();
   archive.events.forEach(event => {
-    requirePerson(event.personId);
+    event.participants.forEach(participant => requirePerson(participant.personId));
+    if (new Set(event.participants.map(participant => participant.personId)).size !== event.participants.length) throw new DomainError('Исту особу додајте једном у догађај.');
     if (event.placeId && !places.has(event.placeId)) throw new DomainError('Место догађаја не постоји у збирци.');
-    const key = JSON.stringify([event.personId, event.type]);
-    if (eventKeys.has(key)) throw new DomainError('Догађај рођења или смрти је већ забележен за ову особу.');
-    eventKeys.add(key);
+    if (event.sourceIds?.some(id => !archive.sources?.some(source => source.id === id))) throw new DomainError('Извор догађаја није у збирци.');
+    if (event.type === 'birth' || event.type === 'death') {
+      const subjects = event.participants.filter(participant => participant.role === 'subject');
+      if (subjects.length !== 1) throw new DomainError('Рођење или смрт мора имати тачно једну главну особу.');
+      const key = JSON.stringify([subjects[0].personId, event.type]);
+      if (eventKeys.has(key)) throw new DomainError('Догађај рођења или смрти је већ забележен за ову особу.');
+      eventKeys.add(key);
+    }
+  });
+  archive.places.forEach(place => {
+    const visited = new Set([place.id]);
+    let parentId = place.parentPlaceId;
+    while (parentId) {
+      if (!places.has(parentId)) throw new DomainError('Надређено место није у збирци.');
+      if (visited.has(parentId)) throw new DomainError('Хијерархија места не може да садржи круг.');
+      visited.add(parentId); parentId = archive.places.find(item => item.id === parentId)?.parentPlaceId;
+    }
+  });
+  archive.media.forEach(item => {
+    const links = new Set<string>();
+    for (const link of item.links || []) {
+      const collection = link.entityType === 'person' ? archive.people : link.entityType === 'event' ? archive.events : link.entityType === 'place' ? archive.places : archive.sources || [];
+      if (!collection.some(record => record.id === link.entityId)) throw new DomainError('Веза датотеке упућује на непостојећи запис.');
+      const key = JSON.stringify(link); if (links.has(key)) throw new DomainError('Веза датотеке је већ забележена.'); links.add(key);
+    }
+    if (item.src && !item.src.startsWith('data:image/') && !/^\.?\/?(assets|photos)\//.test(item.src)) throw new DomainError('Спољне адресе и привремени blob линкови не могу бити сачувана датотека.');
   });
   archive.people.forEach(person => {
     for (const records of [person.occupations || [], person.contacts || [], person.facts || []]) {
@@ -97,9 +123,11 @@ export function validateArchive(input: unknown): FamilyArchive {
     }
     if (new Set(person.aliases || []).size !== (person.aliases || []).length) throw new DomainError('Алтернативна имена не треба понављати.');
     if (person.preferredMediaId && !media.has(person.preferredMediaId)) throw new DomainError('Изабрана фотографија не постоји у збирци.');
-    const birth = archive.events.find(event => event.personId === person.id && event.type === 'birth')?.date?.year;
-    const death = archive.events.find(event => event.personId === person.id && event.type === 'death')?.date?.year;
-    if (birth !== undefined && death !== undefined && death < birth) throw new DomainError('Година смрти не може бити пре године рођења.');
+    const portrait = archive.media.find(item => item.id === person.preferredMediaId);
+    if (portrait?.mimeType && !portrait.mimeType.startsWith('image/')) throw new DomainError('За портрет изаберите фотографију.');
+    const birth = archive.events.find(event => eventHasSubject(event, person.id) && event.type === 'birth')?.date;
+    const death = archive.events.find(event => eventHasSubject(event, person.id) && event.type === 'death')?.date;
+    if (birth && death && dateBounds(death)[1] < dateBounds(birth)[0]) throw new DomainError('Година смрти не може бити пре године рођења.');
   });
   return archive;
 }

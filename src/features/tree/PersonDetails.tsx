@@ -8,6 +8,7 @@ import { hasProfileDetails, profileEvents } from '../../domain/profile';
 import { LifeTimeline, ProfileFacts } from '../people/ProfileSections';
 import { PersonEditorForm } from '../people/PersonEditorDialog';
 import type { ArchiveCommand } from '../../services/commands';
+import { eventHasSubject, eventLabel, formatDate } from '../../domain/events';
 
 export interface PersonActions {
   selectPerson: (id: string) => void;
@@ -20,13 +21,13 @@ export interface PersonActions {
 type PersonDetailsProps = { person: Person; archive: FamilyArchive; actions: PersonActions };
 
 function Facts({ person, archive }: Pick<PersonDetailsProps, 'person' | 'archive'>) {
-  const events = profileEvents(archive, person.id);
+  const events = profileEvents(archive, person.id).filter(event => ['birth', 'death'].includes(event.type) && eventHasSubject(event, person.id));
   if (!events.length && !person.occupation) return null;
   return <dl className="person-facts">
     {events.map(event => {
       const place = archive.places.find(place => place.id === event.placeId);
-      return <div key={event.id}><dt>{event.type === 'birth' ? 'Рођење' : 'Смрт'}</dt>
-        <dd>{event.date && <span>{event.date.approximate ? 'Око ' : ''}{event.date.year}.</span>}{place && <span className="fact-place"><MapPin size={14} />{place.name}</span>}</dd>
+      return <div key={event.id}><dt>{eventLabel(event)}</dt>
+        <dd>{event.date && <span>{formatDate(event.date)}</span>}{place && <span className="fact-place"><MapPin size={14} />{place.name}</span>}</dd>
       </div>;
     })}
     {person.occupation && <div><dt>Занимање</dt><dd>{person.occupation}</dd></div>}

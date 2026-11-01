@@ -1,21 +1,22 @@
 import type { FamilyArchive, Person } from '../../domain/model';
 import { contactHref, contactLabels, profileEvents } from '../../domain/profile';
+import { eventHasPerson, eventLabel, formatDate } from '../../domain/events';
 
 export function LifeTimeline({ archive, person }: { archive: FamilyArchive; person: Person }) {
   const events = profileEvents(archive, person.id);
   if (!events.length && !person.occupations?.length) return null;
   const entries = [
-    ...events.map(event => ({ id: event.id, year: event.date?.year, approximate: event.date?.approximate, title: event.type === 'birth' ? 'Рођење' : 'Смрт', detail: archive.places.find(place => place.id === event.placeId)?.name })),
-    ...(person.occupations || []).map(item => ({ id: `occupation:${item.id}`, year: item.fromYear, approximate: false, title: item.title, detail: item.toYear !== undefined ? `До ${item.toYear}. године` : undefined })),
+    ...events.map(event => ({ id: event.id, year: event.date?.year, dateLabel: formatDate(event.date), title: eventLabel(event), detail: archive.places.find(place => place.id === event.placeId)?.name })),
+    ...(person.occupations || []).map(item => ({ id: `occupation:${item.id}`, year: item.fromYear, dateLabel: item.fromYear !== undefined ? `${item.fromYear}.` : undefined, title: item.title, detail: item.toYear !== undefined ? `До ${item.toYear}. године` : undefined })),
   ].sort((a, b) => (a.year ?? Infinity) - (b.year ?? Infinity));
   return <section className="profile-section"><span className="eyebrow">ЗАБЕЛЕЖЕНИ ТРАГОВИ</span><h2>Траг кроз време</h2><ol className="life-timeline">{entries.map(item => <li key={item.id}>
-    {item.year !== undefined && <span className="timeline-year">{item.approximate ? 'око ' : ''}{item.year}.</span>}<div><h3>{item.title}</h3>{item.detail && <p>{item.detail}</p>}</div>
+    {item.dateLabel && <span className="timeline-year">{item.dateLabel}</span>}<div><h3>{item.title}</h3>{item.detail && <p>{item.detail}</p>}</div>
   </li>)}</ol></section>;
 }
 
 export function ProfileFacts({ person, archive }: { person: Person; archive: FamilyArchive }) {
   const aliases = (person.aliases || []).filter(alias => alias !== person.name);
-  const places = archive.places.filter(place => archive.events.some(event => event.personId === person.id && event.placeId === place.id));
+  const places = archive.places.filter(place => archive.events.some(event => eventHasPerson(event, person.id) && event.placeId === place.id));
   const hasFacts = person.maidenName || aliases.length || person.facts?.length;
   return <>
     {hasFacts && <section className="profile-side-section"><h2>Подаци о особи</h2><dl className="profile-fact-list">

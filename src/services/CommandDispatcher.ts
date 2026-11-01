@@ -2,6 +2,7 @@ import type { FamilyArchive } from '../domain/model';
 import type { ArchiveSnapshot } from '../storage/ArchiveRepository';
 import { ArchiveRepository } from '../storage/ArchiveRepository';
 import { applyCommand, commandLabels, type ArchiveCommand } from './commands';
+import type { MediaFileInput } from '../storage/mediaFiles';
 
 interface HistoryEntry { before: FamilyArchive; after: FamilyArchive; label: string }
 export class CommandDispatcher {
@@ -21,19 +22,20 @@ export class CommandDispatcher {
     return result;
   }
 
-  execute(command: ArchiveCommand) {
+  execute(command: ArchiveCommand, files: MediaFileInput[] = []) {
     return this.serial(async () => {
       let personId: string | undefined;
+      let recordId: string | undefined;
       const result = await this.repository.commit(this.snapshot.revision, archive => {
-        const applied = applyCommand(archive, command); personId = applied.personId; return applied.archive;
-      });
+        const applied = applyCommand(archive, command); personId = applied.personId; recordId = applied.recordId; return applied.archive;
+      }, files);
       if (result.after.revision !== result.before.revision) {
         this.undoStack.push({ before: result.before.archive, after: result.after.archive, label: commandLabels[command.type] });
         if (this.undoStack.length > 50) this.undoStack.shift();
         this.redoStack = [];
       }
       this.snapshot = result.after;
-      return { ...this.snapshot, personId };
+      return { ...this.snapshot, personId, recordId };
     });
   }
 

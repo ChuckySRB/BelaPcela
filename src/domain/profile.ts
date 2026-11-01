@@ -1,4 +1,5 @@
 import type { Contact, FamilyArchive, Person } from './model';
+import { eventHasPerson } from './events';
 
 export const contactLabels: Record<Contact['kind'], string> = { email: 'Е-пошта', phone: 'Телефон', website: 'Веб-сајт', social: 'Друштвена мрежа', other: 'Други контакт' };
 export function contactHref(contact: Contact): string | undefined {
@@ -14,7 +15,7 @@ export function contactHref(contact: Contact): string | undefined {
   return undefined;
 }
 export function profileEvents(archive: FamilyArchive, personId: string) {
-  return archive.events.filter(event => event.personId === personId && (event.date || event.placeId))
+  return archive.events.filter(event => eventHasPerson(event, personId) && (event.date || event.placeId || event.title || event.description || !['birth', 'death'].includes(event.type)))
     .sort((a, b) => (a.date?.year ?? Infinity) - (b.date?.year ?? Infinity) || (a.type === 'birth' ? -1 : 1));
 }
 export function hasProfileDetails(person: Person) {

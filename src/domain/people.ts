@@ -1,4 +1,5 @@
 import type { FamilyArchive, Person } from './model';
+import { eventHasSubject } from './events';
 
 export const personLabel = (person?: Person) => person?.name?.trim() || 'Неименована особа';
 export function initials(person: Person) {
@@ -7,8 +8,8 @@ export function initials(person: Person) {
 
 export function lifeYears(archive: FamilyArchive, personId: string): string | undefined {
   const year = (type: 'birth' | 'death') => {
-    const date = archive.events.find(event => event.personId === personId && event.type === type)?.date;
-    return date ? `${date.approximate ? 'око ' : ''}${date.year}` : undefined;
+    const date = archive.events.find(event => eventHasSubject(event, personId) && event.type === type)?.date;
+    return date ? `${date.approximate ? 'око ' : ''}${date.year}${date.endYear !== undefined ? `–${date.endYear}` : ''}` : undefined;
   };
   const birth = year('birth');
   const death = year('death');
