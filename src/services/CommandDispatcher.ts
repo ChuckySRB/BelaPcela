@@ -1,0 +1,51 @@
+import type { FamilyArchive } from '../domain/model';
+import type { ArchiveSnapshot } from '../storage/ArchiveRepository';
+import { ArchiveRepository } from '../storage/ArchiveRepository';
+import { applyCommand, commandLabels, type ArchiveCommand } from './commands';
+
+interface HistoryEntry { before: FamilyArchive; after: FamilyArchive; label: string }
+export class CommandDispatcher {
+  private undoStack: HistoryEntry[] = [];
+  private redoStack: HistoryEntry[] = [];
+  // Serializes double clicks and keyboard commands; one failed command never poisons the queue.
+  private queue: Promise<unknown> = Promise.resolve();
+  constructor(private repository: ArchiveRepository, private snapshot: ArchiveSnapshot) {}
+  get current() { return this.snapshot; }
+  get canUndo() { return this.undoStack.length > 0; }
+  get canRedo() { return this.redoStack.length > 0; }
+  get undoLabel() { return this.undoStack.at(-1)?.label; }
+  get redoLabel() { return this.redoStack.at(-1)?.label; }
+  private serial<T>(action: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(action);
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
+
+  execute(command: ArchiveCommand) {
+    return this.serial(async () => {
+      let personId: string | undefined;
+      const result = await this.repository.commit(this.snapshot.revision, archive => {
+        const applied = applyCommand(archive, command); personId = applied.personId; return applied.archive;
+      });
+      if (result.after.revision !== result.before.revision) {
+        this.undoStack.push({ before: result.before.archive, after: result.after.archive, label: commandLabels[command.type] });
+        if (this.undoStack.length > 50) this.undoStack.shift();
+        this.redoStack = [];
+      }
+      this.snapshot = result.after;
+      return { ...this.snapshot, personId };
+    });
+  }
+
+  undo() { return this.moveHistory(this.undoStack, this.redoStack, 'before'); }
+  redo() { return this.moveHistory(this.redoStack, this.undoStack, 'after'); }
+  private moveHistory(from: HistoryEntry[], to: HistoryEntry[], side: 'before' | 'after') {
+    return this.serial(async () => {
+      const entry = from.at(-1);
+      if (!entry) return this.snapshot;
+      const result = await this.repository.commit(this.snapshot.revision, () => entry[side]);
+      from.pop(); to.push(entry); this.snapshot = result.after;
+      return this.snapshot;
+    });
+  }
+}
