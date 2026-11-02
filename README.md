@@ -1,4 +1,4 @@
-# BelaPčela
+# БелаПчела
 
 A local-only genealogy app: a family museum in Serbian Cyrillic. **Milestones 1–5 are implemented**, including the requested larger canvas, Петронић demo family, and dark theme. Product decisions follow `BelaPcela_Product_Spec_v0_5.md`; the original kickoff remains the record of the first iteration.
 

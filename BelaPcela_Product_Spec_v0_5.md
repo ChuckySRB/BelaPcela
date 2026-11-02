@@ -1,6 +1,6 @@
-# BelaPčela — Product, UX & Design Specification v0.5
+# БелаПчела — Product, UX & Design Specification v0.5
 
-> A local-first Serbian-language family genealogy web application designed as a modern family museum. This document is the product/design source of truth for implementation in Codex. The project name is **BelaPčela** (retain spelling and Unicode character č). Internal code identifiers use English; UI copy defaults to Serbian Cyrillic.
+> A local-first Serbian-language family genealogy web application designed as a modern family museum. This document is the product/design source of truth for implementation in Codex. The public project name is **БелаПчела** (retain Cyrillic spelling and capitalization, as confirmed on 2026-11-02). Internal code identifiers use English; UI copy defaults to Serbian Cyrillic.
 
 ## 0. Confirmed product decisions
 
@@ -13,7 +13,7 @@
 - All biographical details optional. In reading mode, omit empty fields and sections. In edit mode, offer `+ Додај податак` to reveal new fields.
 - **Portrait card** (vertical museum photo) is the chosen primary node shape. Hexagons are distinctive functional details; **never change full portrait cards into hexagons**.
 - Places, life events, relationships, sources, and media are first-class reusable objects. Place is not a free-form string repeated across people.
-- Product name: **BelaPčela**; not the older working name “Живи архив”.
+- Product name: **БелаПчела**; not the older working name “Живи архив”.
 
 ## 1. Creative direction: living genealogical museum + honeycomb
 
@@ -72,7 +72,7 @@ Build a reusable `<HexBadge>` that can display an icon, number, or state. Prefer
 
 ### Main shell
 
-- Top app bar: `BelaPčela` logotype, current archive name, global search (`Ctrl+K`), autosave status, undo/redo, export/backup, settings.
+- Top app bar: `БелаПчела` logotype, current archive name, global search (`Ctrl+K`), autosave status, undo/redo, export/backup, settings.
 - Left compact vertical navigation (64-72px): `Стабло`, `Особе`, `Места`, `Догађаји`, `Архив`, `Подешавања`. Highlight active state with hex motif but keep icons conventional/readable.
 - Center: infinite pan/zoom family canvas. Thin, optional honeycomb watermark or parchment-tint background. No boxed container around the entire graph.
 - Right persistent inspector (360-400px): opens when clicking a person, relationship, place, or event; closes manually. Opening it must preserve graph layout and aim to keep selected node visible.
@@ -287,7 +287,7 @@ ZIP data+media, plain data-only JSON, import preflight and schema migrations, PW
 7. Place/media/event objects are reusable and shared without duplicating payloads.
 8. Full ZIP backup round-trips both family data and original media files.
 9. No app server, sign-up, remote data storage or analytics.
-10. UI defaults to Serbian Cyrillic, brand is written **BelaPčela**.
+10. UI defaults to Serbian Cyrillic, brand is written **БелаПчела**.
 
 ## 13. References for implementers
 

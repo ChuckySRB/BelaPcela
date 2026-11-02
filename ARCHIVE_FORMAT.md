@@ -1,6 +1,8 @@
-# BelaPčela portable archive, format 1
+# БелаПчела portable archive, format 1
 
 The portable format version is independent of the normalized data schema (currently 3) and IndexedDB database version (currently 4). Unknown versions are rejected. All documents use UTF-8. Every export is local; it requires no account or server.
+
+The public application name is **БелаПчела**. The stable `BelaPcela` format marker identifies compatible existing backups; exported download filenames use the public Cyrillic name.
 
 ## Full ZIP
 

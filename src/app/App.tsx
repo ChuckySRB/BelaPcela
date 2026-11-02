@@ -36,7 +36,7 @@ const navigation = [
 
 export function App() {
   const store = useArchive();
-  if (!store.archive) return <main className="storage-loading"><BrandMark /><h1>BelaPčela</h1><p role={store.error ? 'alert' : 'status'}>{store.error || 'Отварамо вашу локалну збирку…'}</p>{store.error && <button className="button button--primary" onClick={() => void store.reload()}>Покушај поново</button>}</main>;
+  if (!store.archive) return <main className="storage-loading"><BrandMark /><h1>БелаПчела</h1><p role={store.error ? 'alert' : 'status'}>{store.error || 'Отварамо вашу локалну збирку…'}</p>{store.error && <button className="button button--primary" onClick={() => void store.reload()}>Покушај поново</button>}</main>;
   return <ArchiveApp key={`${store.archive.id}:${store.session}`} store={store} />;
 }
 
@@ -95,7 +95,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const treeActive = !profile && !placesRoute && !eventsRoute && !mediaRoute && !settingsRoute;
   const routeId = (prefix: string) => { try { return route.startsWith(prefix) ? decodeURIComponent(route.slice(prefix.length)) : undefined; } catch { return '__invalid__'; } };
   useEffect(() => {
-    document.title = `${profile ? personLabel(profile) : settingsRoute ? 'Подешавања' : placesRoute ? 'Места' : eventsRoute ? 'Догађаји' : mediaRoute ? 'Архив' : 'Породични музеј'} · BelaPčela`;
+    document.title = `${profile ? personLabel(profile) : settingsRoute ? 'Подешавања' : placesRoute ? 'Места' : eventsRoute ? 'Догађаји' : mediaRoute ? 'Архив' : 'Породични музеј'} · БелаПчела`;
   }, [profile?.id, profile?.name, settingsRoute, placesRoute, eventsRoute, mediaRoute]);
   useEffect(() => {
     if (profile) document.querySelector<HTMLElement>('.profile-page h1')?.focus();
@@ -120,7 +120,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   return <MediaContext.Provider value={store.loadMedia}><CatalogContext.Provider value={catalogActions}><div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : treeActive ? '#tree-title' : '.catalog-page h1')?.focus(); }}>Пређи на садржај</a>
     <header className="topbar">
-      <a className="brand" href="#/tree" aria-label="BelaPčela · почетна"><BrandMark /><span><strong>BelaPčela</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
+      <a className="brand" href="#/tree" aria-label="БелаПчела · почетна"><BrandMark /><span><strong>БелаПчела</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
       <div className="archive-breadcrumb"><span />{archive.name}<ChevronRight size={14} /><span className="demo-label">Локално</span></div>
       <button className="global-search" aria-label="Претражи породичну збирку" onClick={() => setDialog({ kind: 'search' })}><Search size={18} /><span>Пронађите особу…</span><kbd>Ctrl K</kbd></button>
       <div className={`local-status ${store.error ? 'has-error' : ''}`} role="status" title={store.error || 'Подаци се чувају само у овом прегледачу'}><ShieldCheck size={17} /><span>{store.status === 'saving' ? 'Чување…' : store.status === 'error' ? 'Није сачувано' : 'Сачувано локално'}</span></div>

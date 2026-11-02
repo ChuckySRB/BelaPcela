@@ -14,7 +14,7 @@ export function ArchiveBackupDialog({ store, onClose }: { store: ArchiveStore; o
     try {
       const snapshot = full ? await store.transferSnapshot() : { archive, files: [] };
       const blob = full ? await exportFullZIP(snapshot) : exportDataJSON(snapshot.archive);
-      downloadArchive(blob, `BelaPcela-${new Date().toISOString().slice(0, 10)}.${full ? 'zip' : 'json'}`);
+      downloadArchive(blob, `БелаПчела-${new Date().toISOString().slice(0, 10)}.${full ? 'zip' : 'json'}`);
       setMessage(`${full ? 'ZIP' : 'JSON'} преузимање је покренуто. Проверите датотеку у фасцикли преузимања.`);
       if (full) try { localStorage.setItem(`belapcela-backup-${snapshot.archive.id}`, new Date().toISOString()); } catch { /* Optional preference. */ }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Копија није направљена. Покушајте поново.'); }

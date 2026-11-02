@@ -1,8 +1,8 @@
-# Codex kickoff prompt — BelaPčela
+# Codex kickoff prompt — БелаПчела
 
 Implement **Milestone 1 only** from the accompanying `BelaPcela_Product_Spec_v0_5.md`. First inspect the repository and list the actual project structure; if empty, scaffold React + TypeScript + Vite. Use the spec as source of truth; do not silently change product decisions.
 
-The product is a local-first genealogy app named **BelaPčela**, default UI Serbian Cyrillic, styled like an elegant botanical/archival family museum with restrained honeycomb accents. The chosen person node is a **vertical museum portrait card**, NOT a full hexagon. Use reusable tokens and components and preserve accessibility.
+The product is a local-first genealogy app named **БелаПчела**, default UI Serbian Cyrillic, styled like an elegant botanical/archival family museum with restrained honeycomb accents. The chosen person node is a **vertical museum portrait card**, NOT a full hexagon. Use reusable tokens and components and preserve accessibility.
 
 In this iteration:
 - Create responsive application shell: top brand/status/search area, narrow left navigation, central tree canvas, right person inspector.
