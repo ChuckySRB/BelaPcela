@@ -6,12 +6,14 @@ import { CommandDispatcher } from '../services/CommandDispatcher';
 import type { ArchiveCommand } from '../services/commands';
 import type { MediaLink } from '../domain/model';
 import { prepareMediaFiles } from '../services/mediaImport';
+import type { ImportPlan } from '../services/archiveTransfer';
 
 const repository = new ArchiveRepository();
 export function useArchive() {
   const [snapshot, setSnapshot] = useState<ArchiveSnapshot | null>(null);
   const [status, setStatus] = useState<'loading' | 'saving' | 'saved' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [session, setSession] = useState(0);
   const controller = useRef<CommandDispatcher | null>(null);
   const reload = useCallback(async () => {
     try {
@@ -44,8 +46,15 @@ export function useArchive() {
   }), [run]);
   const archiveId = snapshot?.archive.id;
   const loadMedia = useCallback((id: string, variant: 'original' | 'thumbnail') => archiveId ? repository.getMediaBlob(archiveId, id, variant) : Promise.resolve(undefined), [archiveId]);
+  const importArchive = useCallback(async (plan: ImportPlan, mode: 'new' | 'replace') => {
+    await run(dispatcher => dispatcher.importArchive(plan, mode)); setSession(value => value + 1);
+  }, [run]);
+  const selectArchive = useCallback(async (id: string) => {
+    await run(dispatcher => dispatcher.selectArchive(id)); setSession(value => value + 1);
+  }, [run]);
   return {
-    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo, uploadFiles, loadMedia,
+    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo, uploadFiles, loadMedia, session, importArchive, selectArchive,
+    transferSnapshot: () => repository.transferSnapshot(), listArchives: () => repository.listArchives(),
     canUndo: !!controller.current?.canUndo, canRedo: !!controller.current?.canRedo,
     undoLabel: controller.current?.undoLabel, redoLabel: controller.current?.redoLabel,
   };

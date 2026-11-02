@@ -29,6 +29,7 @@ export function createFamilyDatabase(name = 'BelaPcela'): Dexie {
         if (ids.has(record.id)) { record.schemaVersion = 3; record.revision += 1; record.updatedAt = new Date().toISOString(); }
       });
     });
+    db.version(4).stores({ ...archiveStores, mediaFiles: '[archiveId+id], archiveId', preferences: 'key' });
     db.on('versionchange', () => db.close());
     return db;
 }

@@ -3,6 +3,7 @@ import type Dexie from 'dexie';
 import { validateArchive, DomainError } from '../domain/validation';
 import { collectionKeys, DATA_SCHEMA_VERSION, createFamilyDatabase } from './database';
 import type { MediaFileInput, StoredMediaFile } from './mediaFiles';
+import type { ImportPlan, TransferSnapshot } from '../services/archiveTransfer';
 
 interface ArchiveMetadata { id: string; name: string; schemaVersion: number; revision: number; createdAt: string; updatedAt: string }
 type StoredEntity = Entity & { archiveId: string; order: number };
@@ -13,7 +14,49 @@ export class ConflictError extends DomainError {
 
 export class ArchiveRepository {
   constructor(readonly db: Dexie = createFamilyDatabase()) {}
-  private tables(): string[] { return ['archives', ...collectionKeys, 'mediaFiles']; }
+  private tables(): string[] { return ['archives', ...collectionKeys, 'mediaFiles', 'preferences']; }
+  private async activeMetadata(): Promise<ArchiveMetadata | undefined> {
+    const active = await this.db.table('preferences').get('activeArchive');
+    return active ? this.db.table<ArchiveMetadata>('archives').get(active.value) : this.db.table<ArchiveMetadata>('archives').toCollection().first();
+  }
+  async listArchives(): Promise<{ id: string; name: string }[]> {
+    return (await this.db.table<ArchiveMetadata>('archives').toArray()).map(({ id, name }) => ({ id, name }));
+  }
+  async transferSnapshot(): Promise<TransferSnapshot> {
+    return this.db.transaction('r', this.tables(), async () => {
+      const metadata = await this.activeMetadata();
+      if (!metadata) throw new DomainError('Збирка није доступна.');
+      const { archive } = await this.read(metadata);
+      const stored = await this.db.table<StoredMediaFile>('mediaFiles').bulkGet(archive.media.map(item => [archive.id, item.id]));
+      return { archive, files: stored.flatMap(file => file ? [{ id: file.id, original: file.original }] : []) };
+    });
+  }
+  async selectArchive(id: string, expected: ArchiveSnapshot): Promise<ArchiveSnapshot> {
+    return this.db.transaction('rw', this.tables(), async () => {
+      const current = await this.activeMetadata();
+      if (!current || current.id !== expected.archive.id || current.revision !== expected.revision) throw new ConflictError();
+      const target = await this.db.table<ArchiveMetadata>('archives').get(id);
+      if (!target) throw new DomainError('Збирка није пронађена.');
+      const snapshot = await this.read(target);
+      await this.db.table('preferences').put({ key: 'activeArchive', value: id }); return snapshot;
+    });
+  }
+  async importArchive(plan: ImportPlan, mode: 'new' | 'replace', expected: ArchiveSnapshot): Promise<ArchiveSnapshot> {
+    const archive = validateArchive({ ...plan.archive, id: mode === 'new' ? crypto.randomUUID() : expected.archive.id });
+    const fileIds = new Set(plan.files.map(file => file.id));
+    if (fileIds.size !== plan.files.length || plan.files.some(file => !archive.media.some(item => item.id === file.id)) || plan.kind === 'full' && archive.media.some(item => !fileIds.has(item.id)) || plan.kind === 'data-only' && plan.files.length) throw new DomainError('Датотеке увоза нису потпуне.');
+    return this.db.transaction('rw', this.tables(), async () => {
+      const current = await this.activeMetadata();
+      if (!current || current.id !== expected.archive.id || current.revision !== expected.revision) throw new ConflictError();
+      if (mode === 'replace') for (const key of [...collectionKeys, 'mediaFiles']) await this.db.table(key).where('archiveId').equals(current.id).delete();
+      await this.writeCollections(archive);
+      if (plan.files.length) await this.db.table<StoredMediaFile>('mediaFiles').bulkAdd(plan.files.map(file => ({ ...file, archiveId: archive.id })));
+      const now = new Date().toISOString(); const revision = mode === 'replace' ? current.revision + 1 : 0;
+      await this.db.table('archives').put({ id: archive.id, name: archive.name, schemaVersion: DATA_SCHEMA_VERSION, revision, createdAt: mode === 'replace' ? current.createdAt : now, updatedAt: now });
+      await this.db.table('preferences').put({ key: 'activeArchive', value: archive.id });
+      return { archive, revision };
+    });
+  }
   async getMediaBlob(archiveId: string, id: string, variant: 'original' | 'thumbnail'): Promise<Blob | undefined> {
     const file = await this.db.table<StoredMediaFile>('mediaFiles').get([archiveId, id]);
     return variant === 'thumbnail' ? file?.thumbnail || file?.original : file?.original;
@@ -21,7 +64,7 @@ export class ArchiveRepository {
 
   async initialize(seed: FamilyArchive): Promise<ArchiveSnapshot> {
     return this.db.transaction('rw', this.tables(), async () => {
-      const metadata = await this.db.table<ArchiveMetadata>('archives').toCollection().first();
+      const metadata = await this.activeMetadata();
       if (metadata) return this.read(metadata);
       const archive = this.stamp(validateArchive(seed));
       const now = new Date().toISOString();
@@ -34,7 +77,7 @@ export class ArchiveRepository {
 
   async load(): Promise<ArchiveSnapshot> {
     return this.db.transaction('r', this.tables(), async () => {
-      const metadata = await this.db.table<ArchiveMetadata>('archives').toCollection().first();
+      const metadata = await this.activeMetadata();
       if (!metadata) throw new DomainError('Породична збирка није пронађена.');
       return this.read(metadata);
     });
@@ -78,11 +121,11 @@ export class ArchiveRepository {
     }
   }
 
-  async commit(expectedRevision: number, transform: (archive: FamilyArchive) => FamilyArchive, files: MediaFileInput[] = []): Promise<{ before: ArchiveSnapshot; after: ArchiveSnapshot }> {
+  async commit(expectedRevision: number, transform: (archive: FamilyArchive) => FamilyArchive, files: MediaFileInput[] = [], expectedArchiveId?: string): Promise<{ before: ArchiveSnapshot; after: ArchiveSnapshot }> {
     return this.db.transaction('rw', this.tables(), async () => {
-      const metadata = await this.db.table<ArchiveMetadata>('archives').toCollection().first();
+      const metadata = await this.activeMetadata();
       if (!metadata) throw new DomainError('Породична збирка није пронађена.');
-      if (metadata.revision !== expectedRevision) throw new ConflictError();
+      if (metadata.revision !== expectedRevision || expectedArchiveId && metadata.id !== expectedArchiveId) throw new ConflictError();
       const before = await this.read(metadata);
       const after = this.stamp(validateArchive(transform(before.archive)), before.archive);
       if (after.id !== before.archive.id) throw new DomainError('Ова команда не може да промени збирку.');

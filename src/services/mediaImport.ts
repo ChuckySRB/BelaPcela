@@ -28,7 +28,7 @@ export async function identifyFile(file: File): Promise<string> {
   if (declared && declared !== 'application/octet-stream' && (aliases[declared] || declared) !== mime) throw new DomainError('Пријављена врста датотеке се не подудара са њеним садржајем.');
   return mime;
 }
-async function thumbnailFor(blob: Blob): Promise<Blob> {
+export async function thumbnailFor(blob: Blob): Promise<Blob> {
   let image: ImageBitmap;
   try { image = await createImageBitmap(blob); } catch { throw new DomainError('Фотографија није могла да се прочита. Оригинал није сачуван без провере.'); }
   try {
