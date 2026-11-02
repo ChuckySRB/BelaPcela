@@ -1,4 +1,4 @@
-import type { FamilyArchive, Person } from './model';
+import type { FamilyArchive, Person, RelationshipRef } from './model';
 import { eventHasSubject } from './events';
 
 export const personLabel = (person?: Person) => person?.name?.trim() || 'Неименована особа';
@@ -29,23 +29,23 @@ export const partnershipLabels = {
 } as const;
 
 export function relatives(archive: FamilyArchive, personId: string) {
-  const result: { person: Person; label: string; key: string }[] = [];
-  const add = (id: string, label: string, key: string) => {
+  const result: { person: Person; label: string; key: string; relationship: RelationshipRef }[] = [];
+  const add = (id: string, label: string, ref: RelationshipRef) => {
     const person = archive.people.find(person => person.id === id);
-    if (person) result.push({ person, label, key });
+    if (person) result.push({ person, label, key: `${ref.type}:${ref.id}`, relationship: ref });
   };
   archive.parentChildRelationships.forEach(relation => {
     const suffix = relation.kind === 'adoptive' ? ' · усвојење' : relation.kind === 'other' ? ' · друга веза' : '';
-    if (relation.childId === personId) add(relation.parentId, `Родитељ${suffix}`, relation.id);
-    if (relation.parentId === personId) add(relation.childId, `Дете${suffix}`, relation.id);
+    if (relation.childId === personId) add(relation.parentId, `Родитељ${suffix}`, { type: 'parentChild', id: relation.id });
+    if (relation.parentId === personId) add(relation.childId, `Дете${suffix}`, { type: 'parentChild', id: relation.id });
   });
   archive.partnerships.forEach(partnership => {
     if (partnership.personIds.includes(personId)) {
-      add(partnership.personIds.find(id => id !== personId)!, partnershipLabels[partnership.kind], partnership.id);
+      add(partnership.personIds.find(id => id !== personId)!, partnershipLabels[partnership.kind], { type: 'partnership', id: partnership.id });
     }
   });
   archive.kinshipAssertions.forEach(relation => {
-    if (relation.personIds.includes(personId)) add(relation.personIds.find(id => id !== personId)!, relation.label, relation.id);
+    if (relation.personIds.includes(personId)) add(relation.personIds.find(id => id !== personId)!, relation.label, { type: 'kinship', id: relation.id });
   });
   return result;
 }

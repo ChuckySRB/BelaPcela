@@ -3,11 +3,20 @@ import type { FamilyArchive, LifeEvent, Person } from '../domain/model';
 import { DomainError, idSchema, parentageSchema, partnershipSchema, personDetailsSchema, validateArchive, yearSchema } from '../domain/validation';
 import { eventDetailsSchema, placeDetailsSchema, mediaDetailsSchema } from '../domain/catalogSchemas';
 import { eventHasSubject } from '../domain/events';
+import { getRelationship, relationshipCollections, relationshipVersion } from '../domain/relationships';
 
 export const relativeKindSchema = z.enum(['parent', 'child', 'partner', 'sibling']);
 export type RelativeKind = z.infer<typeof relativeKindSchema>;
 const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional(), birthApproximate: z.boolean().optional(), deathApproximate: z.boolean().optional() };
+const relationshipTypeSchema = z.enum(['parentChild', 'partnership', 'kinship']);
+const relationshipUpdateSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('parentChild'), id: idSchema, changes: z.strictObject({ parentId: idSchema.optional(), childId: idSchema.optional(), kind: parentageSchema.optional() }) }),
+  z.strictObject({ type: z.literal('partnership'), id: idSchema, changes: z.strictObject({ personIds: z.tuple([idSchema, idSchema]).optional(), kind: partnershipSchema.optional(), fromYear: yearSchema.nullable().optional() }) }),
+  z.strictObject({ type: z.literal('kinship'), id: idSchema, changes: z.strictObject({ personIds: z.tuple([idSchema, idSchema]).optional(), label: z.string().trim().min(1).max(200).optional() }) }),
+]);
 const commandSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('updateRelationship'), relationship: relationshipUpdateSchema, expectedVersion: z.string().min(1).max(5000) }),
+  z.strictObject({ type: z.literal('deleteRelationship'), relationship: z.strictObject({ type: relationshipTypeSchema, id: idSchema }), expectedVersion: z.string().min(1).max(5000) }),
   z.strictObject({ type: z.literal('renameArchive'), name: z.string().trim().min(1).max(200) }),
   z.strictObject({ type: z.literal('savePlace'), placeId: idSchema.optional(), details: placeDetailsSchema.partial() }),
   z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial(), newPlace: placeDetailsSchema.optional() }),
@@ -24,7 +33,7 @@ const commandSchema = z.discriminatedUnion('type', [
 ]);
 export type ArchiveCommand = z.infer<typeof commandSchema>;
 export interface CommandResult { archive: FamilyArchive; personId?: string; recordId?: string }
-export const commandLabels = { renameArchive: 'Назив збирке', createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке', setPortrait: 'Избор портрета' };
+export const commandLabels = { updateRelationship: 'Измена породичне везе', deleteRelationship: 'Брисање породичне везе', renameArchive: 'Назив збирке', createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке', setPortrait: 'Избор портрета' };
 
 function cleanDetails(details: z.infer<typeof personDetailsSchema>) {
   return Object.fromEntries(Object.entries(details).map(([key, value]) => [key,
@@ -38,6 +47,7 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     if (issue && /[А-Яа-яЂђЈјЉљЊњЋћЏџ]/.test(issue.message)) throw new DomainError(issue.message);
+    if (input?.type === 'updateRelationship') throw new DomainError('Проверите учеснике, врсту везе, назив и целу почетну годину.');
     if (issue?.path.includes('contacts')) throw new DomainError('За сваки контакт унесите исправну вредност. За веб-сајтове користите потпуну http или https адресу.');
     if (issue?.path.includes('facts')) throw new DomainError('Додатни податак мора имати и назив и вредност. Празан ред можете уклонити.');
     if (issue?.path.includes('occupations')) throw new DomainError('Унесите назив занимања и исправне целе године, или уклоните празан ред.');
@@ -48,6 +58,19 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   let personId: string | undefined;
   let recordId: string | undefined;
   if (command.type === 'renameArchive') next.name = command.name;
+  if (command.type === 'updateRelationship' || command.type === 'deleteRelationship') {
+    const relationship = getRelationship(next, command.relationship);
+    if (!relationship) throw new DomainError('Ова веза више није у збирци. Освежите приказ.');
+    if (relationshipVersion(relationship) !== command.expectedVersion) throw new DomainError('Веза је промењена. Поново прегледајте текућу везу пре потврде.');
+    if (command.type === 'deleteRelationship') {
+      const collection = relationshipCollections[command.relationship.type];
+      Object.assign(next, { [collection]: next[collection].filter(record => record.id !== command.relationship.id) });
+    } else {
+      Object.assign(relationship.record, command.relationship.changes);
+      if (relationship.type === 'partnership' && command.relationship.type === 'partnership' && command.relationship.changes.fromYear === null) delete relationship.record.fromYear;
+    }
+    recordId = relationship.record.id;
+  }
   if (command.type === 'savePlace' || command.type === 'saveEvent') {
     const collection = command.type === 'savePlace' ? next.places : next.events;
     const id = command.type === 'savePlace' ? command.placeId : command.eventId;

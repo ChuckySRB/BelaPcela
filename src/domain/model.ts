@@ -39,6 +39,13 @@ export interface KinshipAssertion extends Entity {
   label: string;
 }
 
+export type RelationshipType = 'parentChild' | 'partnership' | 'kinship';
+export interface RelationshipRef { type: RelationshipType; id: string }
+export type RelationshipRecord =
+  | { type: 'parentChild'; record: ParentChildRelationship }
+  | { type: 'partnership'; record: Partnership }
+  | { type: 'kinship'; record: KinshipAssertion };
+
 export interface Place extends Entity {
   name: string;
   alternativeNames?: string[];
