@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { Archive, ArrowDownToLine, CalendarDays, ChevronRight, GitBranch, Info, MapPin, Redo2, Search, Settings2, Undo2, Users, ShieldCheck, Leaf, Sun, Moon } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import { HexBadge } from '../components/HexBadge';
@@ -21,20 +21,23 @@ import { MediaContext } from '../features/media/MediaContext';
 import { MediaPage } from '../features/media/MediaPage';
 import { MediaEditor, MediaUploadDialog } from '../features/media/MediaEditors';
 import type { MediaLink } from '../domain/model';
+import { OfflineStatus } from './OfflineStatus';
+const ArchiveBackupDialog = lazy(() => import('../features/settings/ArchiveBackupDialog').then(module => ({ default: module.ArchiveBackupDialog })));
+const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 
-type DialogState = { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'upload'; links: MediaLink[] } | { kind: 'media'; id: string } | { kind: 'soon'; title: string } | null;
+type DialogState = { kind: 'backup' } | { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'upload'; links: MediaLink[] } | { kind: 'media'; id: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
 const navigate = (path: string) => { window.location.hash = path; };
 const navigation = [
   { label: 'Стабло', icon: GitBranch }, { label: 'Особе', icon: Users },
   { label: 'Места', icon: MapPin }, { label: 'Догађаји', icon: CalendarDays },
-  { label: 'Архив', icon: Archive },
+  { label: 'Архив', icon: Archive }, { label: 'Подешавања', icon: Settings2 },
 ];
 
 export function App() {
   const store = useArchive();
   if (!store.archive) return <main className="storage-loading"><BrandMark /><h1>BelaPčela</h1><p role={store.error ? 'alert' : 'status'}>{store.error || 'Отварамо вашу локалну збирку…'}</p>{store.error && <button className="button button--primary" onClick={() => void store.reload()}>Покушај поново</button>}</main>;
-  return <ArchiveApp store={store} />;
+  return <ArchiveApp key={`${store.archive.id}:${store.session}`} store={store} />;
 }
 
 function ArchiveApp({ store }: { store: ArchiveStore }) {
@@ -88,14 +91,20 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const placesRoute = route === '/places' || route.startsWith('/place/');
   const eventsRoute = route === '/events' || route.startsWith('/event/');
   const mediaRoute = route === '/media' || route.startsWith('/media/');
-  const treeActive = !profile && !placesRoute && !eventsRoute && !mediaRoute;
+  const settingsRoute = route === '/settings';
+  const treeActive = !profile && !placesRoute && !eventsRoute && !mediaRoute && !settingsRoute;
   const routeId = (prefix: string) => { try { return route.startsWith(prefix) ? decodeURIComponent(route.slice(prefix.length)) : undefined; } catch { return '__invalid__'; } };
   useEffect(() => {
-    document.title = profile ? `${personLabel(profile)} · BelaPčela` : 'BelaPčela · Породични музеј';
-  }, [profile?.id, profile?.name]);
+    document.title = `${profile ? personLabel(profile) : settingsRoute ? 'Подешавања' : placesRoute ? 'Места' : eventsRoute ? 'Догађаји' : mediaRoute ? 'Архив' : 'Породични музеј'} · BelaPčela`;
+  }, [profile?.id, profile?.name, settingsRoute, placesRoute, eventsRoute, mediaRoute]);
   useEffect(() => {
     if (profile) document.querySelector<HTMLElement>('.profile-page h1')?.focus();
   }, [profile?.id]);
+  useEffect(() => {
+    if (treeActive || profile) return;
+    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>('.catalog-page h1')?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [route, treeActive, profile]);
   const backToTree = () => {
     navigate('/tree');
     requestAnimationFrame(() => document.getElementById('tree-title')?.focus());
@@ -112,29 +121,31 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : treeActive ? '#tree-title' : '.catalog-page h1')?.focus(); }}>Пређи на садржај</a>
     <header className="topbar">
       <a className="brand" href="#/tree" aria-label="BelaPčela · почетна"><BrandMark /><span><strong>BelaPčela</strong><small>ПОРОДИЧНИ МУЗЕЈ</small></span></a>
-      <div className="archive-breadcrumb"><span />{archive.name}<ChevronRight size={14} /><span className="demo-label">Демо</span></div>
+      <div className="archive-breadcrumb"><span />{archive.name}<ChevronRight size={14} /><span className="demo-label">Локално</span></div>
       <button className="global-search" aria-label="Претражи породичну збирку" onClick={() => setDialog({ kind: 'search' })}><Search size={18} /><span>Пронађите особу…</span><kbd>Ctrl K</kbd></button>
       <div className={`local-status ${store.error ? 'has-error' : ''}`} role="status" title={store.error || 'Подаци се чувају само у овом прегледачу'}><ShieldCheck size={17} /><span>{store.status === 'saving' ? 'Чување…' : store.status === 'error' ? 'Није сачувано' : 'Сачувано локално'}</span></div>
       <div className="history-actions" aria-label="Историја измена"><button className="icon-button" disabled={!store.canUndo || store.status === 'saving'} aria-label="Поништи" title={`Поништи (Ctrl+Z)${store.undoLabel ? ` · ${store.undoLabel}` : ''}`} onClick={() => void store.undo().catch(() => undefined)}><Undo2 size={17} /></button><button className="icon-button" disabled={!store.canRedo || store.status === 'saving'} aria-label="Понови" title={`Понови (Ctrl+Shift+Z)${store.redoLabel ? ` · ${store.redoLabel}` : ''}`} onClick={() => void store.redo().catch(() => undefined)}><Redo2 size={17} /></button></div>
-      <button className="backup-button" aria-label="Резервна копија" title="Резервна копија · у припреми" onClick={() => showUnavailable('Резервна копија')}><ArrowDownToLine size={17} /><span>Резервна копија</span></button>
+      <button className="backup-button" aria-label="Резервна копија" title="Резервна копија и увоз" onClick={() => setDialog({ kind: 'backup' })}><ArrowDownToLine size={17} /><span>Резервна копија</span></button>
       <button className="icon-button theme-toggle" aria-label={theme === 'light' ? 'Укључи тамну тему' : 'Укључи светлу тему'} title={theme === 'light' ? 'Тамна тема' : 'Светла тема'} onClick={toggleTheme}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
-      <button className="icon-button topbar-settings" aria-label="Подешавања — у припреми" onClick={() => showUnavailable('Подешавања')}><Settings2 size={19} /></button>
+      <button className="icon-button topbar-settings" aria-label="Отвори подешавања" onClick={() => navigate('/settings')}><Settings2 size={19} /></button>
     </header>
     <nav className="main-nav" aria-label="Главна навигација">
-      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => { const active = index === 0 ? treeActive : index === 2 ? placesRoute : index === 3 ? eventsRoute : index === 4 ? mediaRoute : false; return <button key={label} aria-label={label} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label}
-        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else if (index === 2) navigate('/places'); else if (index === 3) navigate('/events'); else navigate('/media'); }}>
+      <div className="nav-primary">{navigation.map(({ label, icon: Icon }, index) => { const active = index === 0 ? treeActive : index === 2 ? placesRoute : index === 3 ? eventsRoute : index === 4 ? mediaRoute : index === 5 ? settingsRoute : false; return <button key={label} aria-label={label} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label}
+        onClick={() => { if (index === 0) navigate('/tree'); else if (index === 1) setDialog({ kind: 'search' }); else if (index === 2) navigate('/places'); else if (index === 3) navigate('/events'); else if (index === 4) navigate('/media'); else navigate('/settings'); }}>
         {active ? <HexBadge label={label} variant="forest"><Icon size={20} /></HexBadge> : <span className="nav-icon"><Icon size={21} strokeWidth={1.5} /></span>}<span>{label}</span>
       </button>; })}</div>
       <div className="nav-bottom"><Leaf className="nav-leaf" size={24} strokeWidth={1} /><button className="nav-item" title="О прототипу" onClick={() => showUnavailable('О збирци')}><span className="nav-icon"><Info size={20} /></span><span>О збирци</span></button></div>
     </nav>
     <div className="app-content">
-      <div className="demo-banner"><span className="demo-banner-dot" /><span>Пробна збирка</span><span className="banner-description">Чува се у овом прегледачу · резервне копије у припреми</span></div>
+      <div className="demo-banner"><span className="demo-banner-dot" /><span>Локална збирка</span><span className="banner-description">Чува се у овом прегледачу</span><button className="text-button backup-reminder" onClick={() => setDialog({ kind: 'backup' })}>Направи резервну копију</button></div>
+      <OfflineStatus />
       {store.error && <div className="storage-error" role="alert"><span>{store.error}</span><button className="text-button" onClick={() => void store.reload()}>Освежи из локалне збирке</button></div>}
       <div className="route-workspace" hidden={!treeActive}><TreeWorkspace archive={archive} ui={ui} dispatch={dispatch} actions={actions} active={treeActive} /></div>
       {profile && <PersonProfilePage key={profile.id} person={profile} archive={archive} actions={actions} onBack={backToTree} onSave={saveCommand} onReload={store.reload} />}
       {placesRoute && <PlacesPage key={route} archive={archive} placeId={routeId('/place/')} />}
       {eventsRoute && <EventsPage key={route} archive={archive} eventId={routeId('/event/')} />}
       {mediaRoute && <MediaPage key={route} archive={archive} mediaId={routeId('/media/')} onSave={saveCommand} />}
+      {settingsRoute && <Suspense fallback={<p role="status">Отварамо подешавања…</p>}><SettingsPage store={store} onBackup={() => setDialog({ kind: 'backup' })} /></Suspense>}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
     {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}
@@ -145,5 +156,6 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     {dialog?.kind === 'upload' && <MediaUploadDialog links={dialog.links} archive={archive} onClose={() => setDialog(null)} onUpload={async (files, links) => { await store.uploadFiles(files, links); setDialog(null); }} />}
     {dialog?.kind === 'media' && archive.media.some(item => item.id === dialog.id) && <MediaEditor media={archive.media.find(item => item.id === dialog.id)!} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'soon' && <ComingSoonDialog title={dialog.title} onClose={() => setDialog(null)} />}
+    {dialog?.kind === 'backup' && <Suspense fallback={<div className="canvas-notice" role="status">Отварамо резервне копије…</div>}><ArchiveBackupDialog store={store} onClose={() => setDialog(null)} /></Suspense>}
   </div></CatalogContext.Provider></MediaContext.Provider>;
 }

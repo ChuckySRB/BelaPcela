@@ -5,5 +5,5 @@
     "verbatimModuleSyntax": true, "isolatedModules": true, "noEmit": true,
     "strict": true, "types": ["node"]
   },
-  "include": ["vite.config.ts", "playwright.config.ts"]
+  "include": ["vite.config.ts", "playwright.config.ts", "playwright.offline.config.ts"]
 }

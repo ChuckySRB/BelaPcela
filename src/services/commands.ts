@@ -8,6 +8,7 @@ export const relativeKindSchema = z.enum(['parent', 'child', 'partner', 'sibling
 export type RelativeKind = z.infer<typeof relativeKindSchema>;
 const lifeYearsFields = { birthYear: yearSchema.nullable().optional(), deathYear: yearSchema.nullable().optional(), birthApproximate: z.boolean().optional(), deathApproximate: z.boolean().optional() };
 const commandSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('renameArchive'), name: z.string().trim().min(1).max(200) }),
   z.strictObject({ type: z.literal('savePlace'), placeId: idSchema.optional(), details: placeDetailsSchema.partial() }),
   z.strictObject({ type: z.literal('saveEvent'), eventId: idSchema.optional(), details: eventDetailsSchema.partial(), newPlace: placeDetailsSchema.optional() }),
   z.strictObject({ type: z.literal('addMedia'), items: z.array(z.strictObject({ id: idSchema, ...mediaDetailsSchema.omit({ src: true }).required({ originalFilename: true, mimeType: true, size: true }).shape })).min(1).max(20) }),
@@ -23,7 +24,7 @@ const commandSchema = z.discriminatedUnion('type', [
 ]);
 export type ArchiveCommand = z.infer<typeof commandSchema>;
 export interface CommandResult { archive: FamilyArchive; personId?: string; recordId?: string }
-export const commandLabels = { createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке', setPortrait: 'Избор портрета' };
+export const commandLabels = { renameArchive: 'Назив збирке', createPerson: 'Додавање особе', updatePerson: 'Измена особе', addRelative: 'Додавање сродника', savePlace: 'Чување места', saveEvent: 'Чување догађаја', addMedia: 'Додавање датотека', updateMedia: 'Измена описа датотеке', setPortrait: 'Избор портрета' };
 
 function cleanDetails(details: z.infer<typeof personDetailsSchema>) {
   return Object.fromEntries(Object.entries(details).map(([key, value]) => [key,
@@ -46,6 +47,7 @@ export function applyCommand(archive: FamilyArchive, input: ArchiveCommand, newI
   const next: FamilyArchive = structuredClone(archive);
   let personId: string | undefined;
   let recordId: string | undefined;
+  if (command.type === 'renameArchive') next.name = command.name;
   if (command.type === 'savePlace' || command.type === 'saveEvent') {
     const collection = command.type === 'savePlace' ? next.places : next.events;
     const id = command.type === 'savePlace' ? command.placeId : command.eventId;
