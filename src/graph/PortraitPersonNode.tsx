@@ -21,14 +21,14 @@ export const PortraitPersonNode = memo(function PortraitPersonNode({ data, selec
   const years = lifeYears(archive, person.id);
   return <>
     <Handle type="target" position={Position.Top} isConnectable={false} />
-    <NodeToolbar isVisible={selected} position={Position.Top} offset={12}>
+    {selected && <NodeToolbar isVisible position={Position.Top} offset={12}>
       <div className="node-toolbar nodrag nopan">
         <button className="icon-button" aria-label={`Додај сродника: ${name}`} title="Додај сродника" onClick={() => addRelative(person.id)}><Plus size={18} /></button>
         <button className="icon-button" aria-label={`Фокусирај: ${name}`} title="Фокусирај (F)" onClick={() => focusPerson(person.id)}><Crosshair size={18} /></button>
         <button className="icon-button" aria-label={`Отвори профил: ${name}`} title="Отвори профил" onClick={() => openProfile(person.id)}><ArrowUpRight size={18} /></button>
         <button className="icon-button" aria-label={`Кратак преглед: ${name}`} title="Кратак преглед" onClick={preview.openKeyboard}><Eye size={18} /></button>
       </div>
-    </NodeToolbar>
+    </NodeToolbar>}
     <button ref={trigger} {...preview.triggerEvents} data-detail={selected || data.focused ? 'near' : zoomDetail} className={`person-node nodrag ${selected ? 'is-selected' : ''} ${data.focused ? 'is-focused' : ''}`}
       aria-label={`${name}${years ? `, ${years}` : ''}${data.focused ? ', централна особа' : ''}${person.identityNote ? ', идентитет захтева проверу' : ''}`}
       aria-pressed={selected || false} onClick={() => { preview.close(); selectPerson(person.id); }} onDoubleClick={() => openProfile(person.id)}>

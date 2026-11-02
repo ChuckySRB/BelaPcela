@@ -92,12 +92,13 @@ export class GraphProjectionService {
       });
     });
     const adjacency = this.adjacency(archive);
+    const renderedGroupIds = new Set(renderedGroups.map(group => group.id));
     return {
       nodes: [
         ...visiblePersonIds.map(personId => ({ id: `person:${personId}`, kind: 'person' as const, personId, ...PORTRAIT_SIZE })),
         ...renderedGroups.map(group => ({ id: group.id, kind: 'family' as const, group, ...HUB_SIZE })),
       ], edges: edges.filter(edge => {
-        const exists = (id: string) => id.startsWith('person:') ? renderedPeople.has(id.slice(7)) : renderedGroups.some(group => group.id === id);
+        const exists = (id: string) => id.startsWith('person:') ? renderedPeople.has(id.slice(7)) : renderedGroupIds.has(id);
         return exists(edge.source) && exists(edge.target);
       }), groups, visiblePersonIds, branches,
       hiddenPersonIds: archive.people.filter(person => hidden.has(person.id)).map(person => person.id),

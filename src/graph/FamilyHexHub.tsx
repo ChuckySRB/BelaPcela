@@ -14,9 +14,9 @@ export const FamilyHexHub = memo(function FamilyHexHub({ data }: NodeProps<Famil
   return <div className="family-hub">
     <Handle type="target" position={Position.Top} isConnectable={false} />
     <HexBadge label={label} variant="brass" onClick={() => inspectFamily(group.id)}><span className="hub-dot" /></HexBadge>
-    <NodeToolbar isVisible={data.branch.collapsed} position={Position.Right} offset={2}>
+    {data.branch.collapsed && <NodeToolbar isVisible position={Position.Right} offset={2}>
       <div className="collapse-badge nodrag nopan"><HexBadge label={`Прикажи потомке: ${data.branch.hiddenCount} особа`} variant="brass" onClick={() => toggleBranch(group.id)}>+</HexBadge><span aria-hidden="true">{data.branch.hiddenCount}</span></div>
-    </NodeToolbar>
+    </NodeToolbar>}
     <Handle type="source" position={Position.Bottom} isConnectable={false} />
   </div>;
 });

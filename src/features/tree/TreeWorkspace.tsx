@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Node, type Viewport } from '@xyflow/react';
-import { Crosshair, Expand, Map, Minus, Plus, RotateCcw, GitBranch, MousePointer2, UserRound } from 'lucide-react';
+import { Crosshair, Expand, Map as MapIcon, Minus, Plus, RotateCcw, GitBranch, MousePointer2, UserRound } from 'lucide-react';
 import type { FamilyArchive } from '../../domain/model';
 import type { UiState, UiAction } from '../../app/uiState';
 import { personLabel } from '../../domain/people';
@@ -62,18 +62,22 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
     return () => { cancelled = true; };
   }, [layoutSignature, retry]);
 
-  const nodes = useMemo<FlowNode[]>(() => positioned.filter(node => projection.nodes.some(current => current.id === node.id)).map(node => ({
+  const nodes = useMemo<FlowNode[]>(() => {
+    const visibleNodes = new Set(projection.nodes.map(node => node.id));
+    const groups = new Map(projection.groups.map(group => [group.id, group]));
+    return positioned.filter(node => visibleNodes.has(node.id)).map(node => ({
     id: node.id, type: node.kind, position: { x: node.x, y: node.y },
     width: node.width, height: node.height,
-    data: node.kind === 'person' ? { personId: node.personId!, focused: node.personId === ui.focusPersonId } : { group: projection.groups.find(group => group.id === node.id)!, branch: projection.branches[node.id] },
+    data: node.kind === 'person' ? { personId: node.personId!, focused: node.personId === ui.focusPersonId } : { group: groups.get(node.id)!, branch: projection.branches[node.id] },
     selected: node.kind === 'person' && node.personId === ui.selectedPersonId,
     draggable: false, selectable: false, focusable: false,
     // Native child buttons own interaction inside an otherwise inert Flow wrapper.
     style: { pointerEvents: 'all' },
-  } as FlowNode)), [positioned, projection, ui.focusPersonId, ui.selectedPersonId]);
+  } as FlowNode)); }, [positioned, projection, ui.focusPersonId, ui.selectedPersonId]);
   const edges = useMemo<RelationshipFlowEdge[]>(() => projection.edges.map(edge => ({
     ...edge, type: 'relationship', data: { relation: edge },
     ariaLabel: edge.label || 'Породична веза',
+    ariaRole: 'group',
     focusable: false, selectable: false,
   })), [projection]);
 
@@ -103,13 +107,14 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
       {status === 'loading' && <div className="canvas-notice" role="status">Размештамо породичне приче…</div>}
       {status === 'error' && <div className="canvas-notice" role="alert">Стабло није могло да се прикаже.<button className="button" onClick={() => setRetry(value => value + 1)}>Покушај поново</button></div>}
       <ReactFlow<FlowNode, RelationshipFlowEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
+        onlyRenderVisibleElements={archive.people.length > 250}
         viewport={viewport} onViewportChange={setViewport} nodesDraggable={false} nodesConnectable={false}
         elementsSelectable={false} nodesFocusable={false} edgesFocusable={false} deleteKeyCode={null}
-        zoomOnDoubleClick={false} minZoom={0.25} maxZoom={1.6} onEdgeClick={(_, edge) => openEdge(edge)}
+        zoomOnDoubleClick={false} minZoom={0.005} maxZoom={1.6} onEdgeClick={(_, edge) => openEdge(edge)}
         ariaLabelConfig={{ 'minimap.ariaLabel': 'Мала мапа стабла', 'edge.a11yDescription.default': 'Притисните Enter за податке о вези.' }}>
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--bp-canvas-dot)" />
         <Panel position="top-left" className="canvas-context"><span className="tiny-status-dot" /><span>{projection.visiblePersonIds.length} особа у приказу</span><span className="canvas-context-divider">/</span><span>{ui.mode === 'whole' ? 'Цела збирка' : 'Повезана породица'}</span>{projection.hiddenPersonIds.length > 0 && <span>· скривено {projection.hiddenPersonIds.length}</span>}</Panel>
-        <Panel position="bottom-right" className="canvas-controls"><button className="icon-button" aria-label="Увећај" onClick={() => void flow.zoomIn()}><Plus size={18} /></button><output aria-label="Увећање">{Math.round(viewport.zoom * 100)}%</output><button className="icon-button" aria-label="Умањи" onClick={() => void flow.zoomOut()}><Minus size={18} /></button><span className="control-divider" /><button className="icon-button" aria-label="Уклопи приказ" title="Уклопи приказ" onClick={fit}><Expand size={17} /></button><button className="icon-button" aria-label="Врати почетни поглед" title="Врати почетни поглед" onClick={() => { if (defaultView.current) void flow.setViewport(defaultView.current); }}><RotateCcw size={17} /></button><button className="icon-button" aria-label="Прикажи малу мапу" title="Мала мапа" aria-pressed={minimap} onClick={() => setMinimap(value => !value)}><Map size={17} /></button></Panel>
+        <Panel position="bottom-right" className="canvas-controls"><button className="icon-button" aria-label="Увећај" onClick={() => void flow.zoomIn()}><Plus size={18} /></button><output aria-label="Увећање">{Math.round(viewport.zoom * 100)}%</output><button className="icon-button" aria-label="Умањи" onClick={() => void flow.zoomOut()}><Minus size={18} /></button><span className="control-divider" /><button className="icon-button" aria-label="Уклопи приказ" title="Уклопи приказ" onClick={fit}><Expand size={17} /></button><button className="icon-button" aria-label="Врати почетни поглед" title="Врати почетни поглед" onClick={() => { if (defaultView.current) void flow.setViewport(defaultView.current); }}><RotateCcw size={17} /></button><button className="icon-button" aria-label="Прикажи малу мапу" title="Мала мапа" aria-pressed={minimap} onClick={() => setMinimap(value => !value)}><MapIcon size={17} /></button></Panel>
         {minimap && <MiniMap position="top-right" pannable zoomable nodeColor={(node: Node) => node.type === 'family' ? 'var(--bp-brass)' : 'var(--bp-sage)'} maskColor="var(--bp-map-mask)" />}
       </ReactFlow>
       {!!projection.disconnectedPersonIds.length && <div className="unconnected-note"><UserRound size={16} /><span>Неповезане особе</span>{projection.disconnectedPersonIds.map(id => <button key={id} onClick={() => actions.selectPerson(id)}>{personLabel(archive.people.find(person => person.id === id)!)}</button>)}</div>}
