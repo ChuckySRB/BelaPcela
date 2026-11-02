@@ -12,6 +12,13 @@ test('production shell cold-starts offline with local media, lazy settings, work
   expect(cached.some(url => /layout.worker/.test(url))).toBe(true); expect(cached.every(url => !/blob:|family.json|\/media\//.test(url))).toBe(true);
   await context.setOffline(true); await page.close(); const offline = await context.newPage();
   await offline.goto('/#/tree'); await expect(offline.locator('.person-node')).toHaveCount(11); await expect(offline.getByText('Размештамо породичне приче…')).not.toBeVisible();
+  // First load of the relationship dialog happens offline, exercising its precached lazy chunk.
+  await offline.goto('/#/person/nikola');
+  const relationship = offline.locator('.profile-page .relation-list-item').filter({ hasText: 'Ана Јовановић' });
+  await relationship.getByRole('button', { name: /^Измени везу:/ }).click(); await offline.getByLabel('Врста партнерске везе').selectOption('partners');
+  await offline.getByRole('button', { name: 'Прегледај измене', exact: true }).click(); await offline.getByRole('button', { name: 'Потврди и сачувај везу' }).click(); await expect(relationship).toContainText('Партнерство');
+  await relationship.getByRole('button', { name: /^Обриши везу:/ }).click(); await offline.getByRole('checkbox').check(); await offline.getByRole('button', { name: 'Потврди брисање везе' }).click(); await expect(relationship).toHaveCount(0);
+  await offline.keyboard.press('Control+z'); await expect(relationship).toContainText('Партнерство');
   await offline.getByRole('button', { name: 'Подешавања', exact: true }).click(); await offline.getByLabel('Назив збирке', { exact: true }).fill('Збирка без интернета'); await offline.getByRole('button', { name: 'Сачувај назив' }).click(); await expect(offline.getByText('Назив је сачуван.')).toBeVisible();
   await offline.reload(); await expect(offline.getByLabel('Назив збирке', { exact: true })).toHaveValue('Збирка без интернета');
   await offline.getByRole('button', { name: 'Направи резервну копију', exact: true }).click(); const pending = offline.waitForEvent('download'); await offline.getByRole('button', { name: 'Направи ZIP резервну копију' }).click(); const download = await pending;

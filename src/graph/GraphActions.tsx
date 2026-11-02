@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { FamilyArchive } from '../domain/model';
+import type { FamilyArchive, RelationshipRef } from '../domain/model';
 
 export interface GraphActions {
   archive: FamilyArchive;
@@ -9,6 +9,7 @@ export interface GraphActions {
   addRelative: (id: string) => void;
   inspectFamily: (id: string) => void;
   toggleBranch: (id: string) => void;
+  inspectRelationship?: (ref: RelationshipRef) => void;
 }
 export const GraphActionsContext = createContext<GraphActions | null>(null);
 export function useGraphActions() {

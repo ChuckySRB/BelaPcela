@@ -1,5 +1,5 @@
 import { ArrowUpRight, Crosshair, MapPin, Plus, X, ArrowLeft, ChevronRight, Pencil, Leaf } from 'lucide-react';
-import type { FamilyArchive, Person } from '../../domain/model';
+import type { FamilyArchive, Person, RelationshipRef } from '../../domain/model';
 import { lifeYears, personLabel, relatives } from '../../domain/people';
 import { Portrait } from '../../components/Portrait';
 import { HexBadge } from '../../components/HexBadge';
@@ -11,6 +11,7 @@ import type { ArchiveCommand } from '../../services/commands';
 import { eventHasSubject, eventLabel, formatDate } from '../../domain/events';
 import { useCatalogActions } from '../../app/CatalogContext';
 import { MediaGallery } from '../media/MediaGallery';
+import { RelationshipButtons } from '../relationships/RelationshipButtons';
 
 export interface PersonActions {
   selectPerson: (id: string) => void;
@@ -19,6 +20,9 @@ export interface PersonActions {
   addRelative: (id: string) => void;
   editPerson: (id: string) => void;
   showUnavailable: (title: string) => void;
+  editRelationship?: (ref: RelationshipRef) => void;
+  deleteRelationship?: (ref: RelationshipRef) => void;
+  inspectRelationship?: (ref: RelationshipRef) => void;
 }
 type PersonDetailsProps = { person: Person; archive: FamilyArchive; actions: PersonActions };
 
@@ -40,10 +44,10 @@ function Relations({ person, archive, actions }: PersonDetailsProps) {
   const relations = relatives(archive, person.id);
   if (!relations.length) return null;
   return <section className="relations-section"><div className="section-heading"><h3>Породичне везе</h3><span className="count-pill">{relations.length}</span></div>
-    <div className="relations-list">{relations.map(({ person, label, key }) => <button className="relation-row" key={key} onClick={() => actions.selectPerson(person.id)}>
+    <div className="relations-list">{relations.map(({ person, label, key, relationship }) => <div className="relation-list-item" key={key}><button className="relation-row" onClick={() => actions.selectPerson(person.id)}>
       <Portrait person={person} archive={archive} className="portrait--tiny" />
       <span><strong>{personLabel(person)}</strong><small>{label}</small></span><ChevronRight size={16} />
-    </button>)}</div>
+    </button><RelationshipButtons relationship={relationship} description={`${personLabel(person)} · ${label}`} edit={actions.editRelationship} remove={actions.deleteRelationship} /></div>)}</div>
   </section>;
 }
 

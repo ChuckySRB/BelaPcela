@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Node, type Viewport } from '@xyflow/react';
+import { Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore, type Node, type Viewport } from '@xyflow/react';
 import { Crosshair, Expand, Map as MapIcon, Minus, Plus, RotateCcw, GitBranch, MousePointer2, UserRound } from 'lucide-react';
 import type { FamilyArchive } from '../../domain/model';
 import type { UiState, UiAction } from '../../app/uiState';
@@ -23,6 +23,8 @@ type WorkspaceProps = { archive: FamilyArchive; ui: UiState; dispatch: (action: 
 
 function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
   const flow = useReactFlow<FlowNode, RelationshipFlowEdge>();
+  const canvasWidth = useStore(state => state.width);
+  const canvasHeight = useStore(state => state.height);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 0.72 });
   const [positioned, setPositioned] = useState<PositionedNode[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -83,7 +85,7 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
 
   // Layout changes are explicit. Selection and inspector state never trigger fitView.
   useEffect(() => {
-    if (!active || !layoutVersion || fittedVersion.current === layoutVersion || status !== 'ready') return;
+    if (!active || !canvasWidth || !canvasHeight || !layoutVersion || fittedVersion.current === layoutVersion || status !== 'ready') return;
     const frame = requestAnimationFrame(() => {
       const anchored = pendingViewport.current;
       pendingViewport.current = null;
@@ -93,7 +95,7 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [layoutVersion, flow, status, active]);
+  }, [layoutVersion, flow, status, active, canvasWidth, canvasHeight]);
 
   const graphActions = useMemo(() => ({ ...actions, archive, inspectFamily: (id: string) => dispatch({ type: 'inspect-family', groupId: id }), toggleBranch: (id: string) => dispatch({ type: 'toggle-branch', groupId: id }) }), [actions, archive, dispatch]);
   const fit = () => void flow.fitView({ padding: 0.12, maxZoom: 0.88, duration: 0 });
@@ -124,10 +126,11 @@ function Canvas({ archive, ui, dispatch, actions, active }: WorkspaceProps) {
 
 export function TreeWorkspace(props: WorkspaceProps) {
   const { archive, ui, dispatch, actions } = props;
-  const selected = ui.inspector?.kind === 'person' ? archive.people.find(person => person.id === ui.inspector?.id) : undefined;
   // Inspector groups are independent of the currently filtered graph.
   const fullProjection = useMemo(() => projectionService.project(archive, { mode: 'whole', focusPersonId: ui.focusPersonId, collapsedBranches: ui.collapsedBranches }), [archive, ui.focusPersonId, ui.collapsedBranches]);
   const group = ui.inspector?.kind === 'family' ? fullProjection.groups.find(group => group.id === ui.inspector?.id) : undefined;
+  const selectedId = ui.inspector?.kind === 'person' ? ui.inspector.id : ui.inspector?.kind === 'family' && !group ? ui.selectedPersonId : null;
+  const selected = archive.people.find(person => person.id === selectedId);
   const focusName = personLabel(archive.people.find(person => person.id === ui.focusPersonId)!);
   return <main className={`tree-workspace ${selected || group ? 'has-inspector' : ''}`} id="main-content">
     <section className="tree-main" aria-labelledby="tree-title">
@@ -138,6 +141,6 @@ export function TreeWorkspace(props: WorkspaceProps) {
       <footer className="canvas-footer"><div className="graph-legend" aria-label="Легенда веза"><span><i className="legend-line" />Родитељство</span><span><i className="legend-line legend-line--dashed" />Усвојење / друга веза</span></div><span className="canvas-hint"><MousePointer2 size={13} />Превуци за померање · точкић за увећање</span></footer>
     </section>
     {selected && <PersonInspector person={selected} archive={archive} actions={actions} hiddenInBranch={fullProjection.hiddenPersonIds.includes(selected.id)} onReveal={() => dispatch({ type: 'expand-all' })} focused={selected.id === ui.focusPersonId} onClose={() => dispatch({ type: 'close-inspector' })} />}
-    {group && <FamilyInspector group={group} archive={archive} branch={fullProjection.branches[group.id]} onToggleBranch={() => dispatch({ type: 'toggle-branch', groupId: group.id })} selectPerson={actions.selectPerson} onClose={() => dispatch({ type: 'close-inspector' })} />}
+    {group && <FamilyInspector group={group} archive={archive} branch={fullProjection.branches[group.id]} onToggleBranch={() => dispatch({ type: 'toggle-branch', groupId: group.id })} selectPerson={actions.selectPerson} editRelationship={actions.editRelationship} deleteRelationship={actions.deleteRelationship} onClose={() => dispatch({ type: 'close-inspector' })} />}
   </main>;
 }

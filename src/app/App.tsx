@@ -20,12 +20,13 @@ import { PlaceEditor } from '../features/places/PlaceEditor';
 import { MediaContext } from '../features/media/MediaContext';
 import { MediaPage } from '../features/media/MediaPage';
 import { MediaEditor, MediaUploadDialog } from '../features/media/MediaEditors';
-import type { MediaLink } from '../domain/model';
+import type { MediaLink, RelationshipRef } from '../domain/model';
 import { OfflineStatus } from './OfflineStatus';
 const ArchiveBackupDialog = lazy(() => import('../features/settings/ArchiveBackupDialog').then(module => ({ default: module.ArchiveBackupDialog })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
+const RelationshipDialog = lazy(() => import('../features/relationships/RelationshipDialog').then(module => ({ default: module.RelationshipDialog })));
 
-type DialogState = { kind: 'backup' } | { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'upload'; links: MediaLink[] } | { kind: 'media'; id: string } | { kind: 'soon'; title: string } | null;
+type DialogState = { kind: 'relationship'; target: RelationshipRef; mode: 'view' | 'edit' | 'delete' } | { kind: 'backup' } | { kind: 'search' } | { kind: 'relative'; personId: string } | { kind: 'edit'; personId?: string } | { kind: 'event'; id?: string; personId?: string } | { kind: 'place'; id?: string } | { kind: 'upload'; links: MediaLink[] } | { kind: 'media'; id: string } | { kind: 'soon'; title: string } | null;
 const readRoute = () => window.location.hash.slice(1) || '/tree';
 const navigate = (path: string) => { window.location.hash = path; };
 const navigation = [
@@ -56,7 +57,10 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
   const openProfile = useCallback((id: string) => { dispatch({ type: 'select', personId: id }); navigate(`/person/${id}`); }, []);
   const addRelative = useCallback((personId: string) => setDialog({ kind: 'relative', personId }), []);
   const editPerson = useCallback((personId: string) => setDialog({ kind: 'edit', personId }), []);
-  const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable]);
+  const editRelationship = useCallback((target: RelationshipRef) => setDialog({ kind: 'relationship', target, mode: 'edit' }), []);
+  const deleteRelationship = useCallback((target: RelationshipRef) => setDialog({ kind: 'relationship', target, mode: 'delete' }), []);
+  const inspectRelationship = useCallback((target: RelationshipRef) => setDialog({ kind: 'relationship', target, mode: 'view' }), []);
+  const actions = useMemo(() => ({ selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable, editRelationship, deleteRelationship, inspectRelationship }), [selectPerson, focusPerson, openProfile, addRelative, editPerson, showUnavailable, editRelationship, deleteRelationship, inspectRelationship]);
   const catalogActions = useMemo<CatalogActions>(() => ({ editPlace: id => setDialog({ kind: 'place', id }), editEvent: (id, personId) => setDialog({ kind: 'event', id, personId }), editMedia: id => setDialog({ kind: 'media', id }), uploadMedia: (links = []) => setDialog({ kind: 'upload', links }) }), []);
   useEffect(() => {
     const listener = () => setRoute(readRoute());
@@ -116,6 +120,9 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     if (command.type === 'savePlace' && !command.placeId && result.recordId) navigate(`/place/${encodeURIComponent(result.recordId)}`);
     if (command.type === 'saveEvent' && !command.eventId && result.recordId) navigate(`/event/${encodeURIComponent(result.recordId)}`);
     setDialog(null);
+    if (command.type === 'updateRelationship' || command.type === 'deleteRelationship') requestAnimationFrame(() => {
+      if (document.activeElement === document.body) document.querySelector<HTMLElement>(profile ? '.profile-page h1' : '#tree-title')?.focus();
+    });
   };
   return <MediaContext.Provider value={store.loadMedia}><CatalogContext.Provider value={catalogActions}><div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.querySelector<HTMLElement>(profile ? '.profile-page h1' : treeActive ? '#tree-title' : '.catalog-page h1')?.focus(); }}>Пређи на садржај</a>
@@ -156,6 +163,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
     {dialog?.kind === 'upload' && <MediaUploadDialog links={dialog.links} archive={archive} onClose={() => setDialog(null)} onUpload={async (files, links) => { await store.uploadFiles(files, links); setDialog(null); }} />}
     {dialog?.kind === 'media' && archive.media.some(item => item.id === dialog.id) && <MediaEditor media={archive.media.find(item => item.id === dialog.id)!} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} />}
     {dialog?.kind === 'soon' && <ComingSoonDialog title={dialog.title} onClose={() => setDialog(null)} />}
+    {dialog?.kind === 'relationship' && <Suspense fallback={<div className="canvas-notice" role="status">Отварамо породичну везу…</div>}><RelationshipDialog key={`${dialog.target.type}:${dialog.target.id}:${dialog.mode}`} target={dialog.target} initialMode={dialog.mode} archive={archive} onClose={() => setDialog(null)} onSave={saveCommand} onReload={store.reload} /></Suspense>}
     {dialog?.kind === 'backup' && <Suspense fallback={<div className="canvas-notice" role="status">Отварамо резервне копије…</div>}><ArchiveBackupDialog store={store} onClose={() => setDialog(null)} /></Suspense>}
   </div></CatalogContext.Provider></MediaContext.Provider>;
 }
