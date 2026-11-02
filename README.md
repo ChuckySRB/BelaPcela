@@ -47,6 +47,16 @@ The browser tests use installed Edge so no browser download is needed on this Wi
 
 The invented fixture contains 11 people: parents with two children, a person with two partners, separate children from those relationships, adoptive parentage, a child with one known parent, and an unconnected person. Parentage never implies marriage. A child is never assigned to every partner of a parent.
 
+## Editing and deleting relationships
+
+- Each relationship row in a person's inspector/profile and in a family-junction inspector has **Измени везу** (pencil) and **Обриши везу** (bin) controls. A direct kinship line also opens its details by click, Enter or Space. A junction is a visual grouping; each action targets one canonical record.
+- Parent–child editing can correct either participant, swap their roles, or change biological/adoptive/other parentage. Partnership editing supports both participants, marriage/partnership/unspecified status and the optional starting year; clear the year field to remove it. Direct kinship assertions support both participants and their label. Separate relationship categories stay separate records.
+- **Прегледај измене** validates the proposal and shows the current and proposed relationship. Only **Потврди и сачувај везу** persists it. Existing IDs and creation timestamps remain stable. Duplicate pairs, self-links, missing people and ancestry cycles are rejected while preserving the draft. Forms submit changed fields only.
+- Deletion shows the exact participants and relationship, then requires the acknowledgement checkbox and **Потврди брисање везе**. It removes only that typed relationship; people, other parent/partner links, events, sources and files remain. Event participants and wedding events are independent facts, edited in Events. Deleting a relationship never deletes a person or a whole family junction.
+- Edits/deletes are transactional commands with session undo/redo and reload persistence. Revision checks reject stale windows. A reviewed-record version also prevents an old confirmation from applying to a changed relationship after refreshing. Refresh preserves the draft; a changed edit must be reviewed again, and a changed deletion resets its acknowledgement. If the record was removed elsewhere, the dialog explains that it is unavailable.
+- Selection, focus and graph mode remain independent. Scalar relationship changes preserve layout/viewport; structural corrections retain the selected/focused screen anchor where possible. If the inspected junction disappears, the inspector shows the selected person; undo can restore the original junction. The first fit after a direct profile link waits for a measured, visible canvas.
+- The relationship dialog is a precached lazy module. Production offline tests first open it without network access, edit, delete, undo, then continue through ZIP backup/import review. Browser coverage includes desktop/mobile cancellation, invalid edits, year clearing, kinship-line keyboard access, confirmations, stale-window refresh and undo/redo.
+
 ## Events, places and files
 
 - **Догађаји** opens the searchable event browser. Create or edit a birth, death, wedding, residence, migration, work, burial or other event. Each record has participants with roles, an optional title/description, one reusable place and a date or period. A shared event appears on every participant's profile without duplicating the record or inferring family relationships.
@@ -82,13 +92,13 @@ One active collection at a time, Cyrillic UI, whole-tree view, Nikola as the ini
 
 **Archive data is local to this browser profile and origin** (host and port). Keep using the same local URL to access it. Clearing site data or deleting the browser profile can erase the archive. Use explicit ZIP downloads for independent backups; no server backup exists. If IndexedDB is blocked or unreadable, editing is blocked with a retry message instead of silently falling back to an unsaved demo.
 
-Relationship editing/deletion, dedicated source editing, online map integration, photo annotations, a full sortable people directory and collection deletion remain future work. The search picker provides the current person-directory interaction. Editing is designed primarily for desktop; mobile uses a bottom sheet, responsive dialogs and stacked details. Tested data upgrades cover version 1 → 2 → 3: previous people/dates/places/relationships/timestamps/order are preserved; old single-person events become participant-based records with the same IDs. Future versions must keep adding explicit upgrades and migration tests.
+Dedicated source editing, online map integration, photo annotations, a full sortable people directory, person/event/place/media deletion and collection deletion remain future work. The search picker provides the current person-directory interaction. Editing is designed primarily for desktop; mobile uses a bottom sheet, responsive dialogs and stacked details. Tested data upgrades cover version 1 → 2 → 3: previous people/dates/places/relationships/timestamps/order are preserved; old single-person events become participant-based records with the same IDs. Future versions must keep adding explicit upgrades and migration tests.
 
 All runtime assets are bundled locally. No backend, account, analytics, remote fonts, geocoding, or family-data upload. A static HTTPS/localhost server is needed for the initial installation; subsequent cached loads work offline. Installation UI depends on the browser.
 
 Scale tests cover 10, 100, 500 and 1,200 connected people plus the existing 1,000-generation traversal. Collections over 250 people virtualize the visible canvas. Safe large forests use ELK Mr. Tree, with direction checked by tests; multi-parent networks retain layered layout. Expanding/collapsing never changes canonical data or discards generations. The 1,200-person browser flow covers background layout, a responsive theme control, search, selection, fit, collapse and expansion. Complex highly connected archives may take substantially longer; layout has a 60-second failure/retry boundary. A large initial fit can emit a nonfatal browser ResizeObserver delivery warning; more incremental rendering remains future work.
 
-Backup/settings code and the graph library are split into separate bundles; the main application is ~368 kB minified / ~110 kB gzip. ELK remains ~1.46 MB minified (~452 kB gzip), plus its worker build, and still causes Vite's size warning. Workerless environments use the lazy ELK fallback. Direct detail links defer the initial graph fit until returning to the visible tree. Automated WCAG checks cover the graph, settings and backup dialog in both themes and screen sizes; native dialog focus trapping/restoration and explicit update behavior have browser coverage. This complements, rather than replaces, assistive-technology/device testing.
+Backup/settings code and the graph library are split into separate bundles; the main application is ~374 kB minified / ~111 kB gzip. ELK remains ~1.46 MB minified (~452 kB gzip), plus its worker build, and still causes Vite's size warning. Workerless environments use the lazy ELK fallback. Direct detail links defer the initial graph fit until returning to the visible tree. Automated WCAG checks cover the graph, settings and backup dialog in both themes and screen sizes; native dialog focus trapping/restoration and explicit update behavior have browser coverage. This complements, rather than replaces, assistive-technology/device testing.
 
 ## Structure / added files
 
@@ -110,6 +120,7 @@ src/
   graph/                         projection, branch visibility, ELK, zoom, hover cards
   features/tree/                 workspace, inspectors, profile, picker, notices
   features/people/               inline/modal editor, profile sections, relative flow
+  features/relationships/        reviewed edit/delete dialog and per-record controls
   features/events/               shared event browser, details and editor
   features/places/               offline atlas, place editor and coordinate picker
   features/media/                local gallery, upload/editor, viewer, URL lifecycle
@@ -121,6 +132,6 @@ e2e/                             desktop/mobile browsing, editing and reload tes
 
 ## Future work
 
-The five planned milestones are implemented. Further work can extend relationship/source editing, collection management, large complex-network performance and real-device accessibility coverage.
+The five planned milestones and relationship editing/deletion are implemented. Further work can extend source editing, other entity deletion, collection management, large complex-network performance and real-device accessibility coverage.
 
 Technical references: [React Flow NodeToolbar](https://reactflow.dev/api-reference/components/node-toolbar), [ELK integration](https://reactflow.dev/examples/layout/elkjs), [Dexie transactions](https://dexie.org/docs/Dexie/Dexie.transaction()), [Dexie upgrades](https://dexie.org/docs/Version/Version.upgrade()), [storage persistence](https://dexie.org/docs/StorageManager), [createImageBitmap](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [object URL cleanup](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static).

@@ -134,6 +134,7 @@ When person P is focused, show all connected generations with **no depth cap**. 
 - Branch expand/collapse affects presentation only, not canonical data.
 - Click a relationship edge or hub -> relationship inspector with type, participants, dates, linked events/media. A hub is not synonymous with marriage.
 - Select/add relationship -> recompute affected layout, attempting to keep viewport anchor stable.
+- Existing parent-child, partnership and direct kinship records can be edited or deleted from profiles and family inspectors. Edit shows a before/after review; deletion identifies one record and requires explicit acknowledgement. Keep people, other relationships, events and files; support transactional undo/redo and reject stale confirmations after another window changes the record. Never treat deleting a visual junction as deleting a whole family.
 - `Fit all` encompasses rendered relevant graph, not the entire off-screen archive if in a filtered view.
 - Avoid free dragging person nodes in regular view. Manual layout mode is deferred.
 - Keep graph position/zoom/collapsed state when navigating to a profile and back.
