@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 
 /** Precache only files produced by this build. Never intercept Blob URLs or family data. */
 export function offlineShell(): Plugin {
-  return { name: 'belapcela-offline-shell', apply: 'build', generateBundle: { order: 'post', handler(_, bundle) {
-    const assets = [...Object.keys(bundle), 'seal.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'].filter(path => !path.endsWith('.map'));
-    const version = createHash('sha256').update(JSON.stringify(bundle)).digest('hex').slice(0, 16);
+  let publicDir = '';
+  return { name: 'belapcela-offline-shell', apply: 'build', configResolved(config) { publicDir = config.publicDir; }, generateBundle: { order: 'post', handler(_, bundle) {
+    const publicAssets = ['seal.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+    const assets = [...Object.keys(bundle), ...publicAssets].filter(path => !path.endsWith('.map'));
+    const hash = createHash('sha256').update(JSON.stringify(bundle));
+    for (const path of publicAssets) hash.update(readFileSync(resolve(publicDir, path)));
+    const version = hash.digest('hex').slice(0, 16);
     this.emitFile({ type: 'asset', fileName: 'sw.js', source: `
 const PREFIX = 'belapcela-shell-' + new URL(self.registration.scope).pathname + '-';
 const CACHE = PREFIX + '${version}';

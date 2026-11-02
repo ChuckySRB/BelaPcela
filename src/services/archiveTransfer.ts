@@ -9,7 +9,7 @@ import { MAX_ARCHIVE_BYTES, MAX_ARCHIVE_FILES, MAX_JSON_BYTES, readBoundedZip } 
 
 const header = { format: z.literal('BelaPcela'), formatVersion: z.literal(1), dataSchemaVersion: z.number().int().min(1).max(DATA_SCHEMA_VERSION), exportedAt: z.iso.datetime() };
 const fileSchema = z.strictObject({ mediaId: z.string().min(1), path: z.string(), mimeType: z.string(), size: z.number().int().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/) });
-const manifestSchema = z.strictObject({ ...header, kind: z.literal('full'), files: z.array(fileSchema).max(MAX_ARCHIVE_FILES - 2) });
+const manifestSchema = z.strictObject({ ...header, kind: z.literal('full'), archive: z.strictObject({ id: z.string().min(1).max(200), name: z.string().max(200) }), files: z.array(fileSchema).max(MAX_ARCHIVE_FILES - 2) });
 const dataSchema = z.strictObject({ dataSchemaVersion: header.dataSchemaVersion, archive: z.unknown() });
 const jsonSchema = z.strictObject({ ...header, kind: z.literal('data-only'), archive: z.unknown() });
 export interface ImportPlan { archive: FamilyArchive; files: MediaFileInput[]; kind: 'full' | 'data-only'; warnings: string[]; migratedFrom?: number }
@@ -35,6 +35,7 @@ function migrate(input: unknown, version: number): FamilyArchive {
   return validateArchive(copy);
 }
 function portable(archive: FamilyArchive): FamilyArchive {
+  if (collectionKeys.reduce((sum, key) => sum + (archive[key]?.length || 0), 0) > 100_000) throw new DomainError('Збирка прелази ограничење од 100.000 записа.');
   return { ...archive, media: archive.media.map(({ src: _src, ...item }) => item) };
 }
 const makeHeader = () => ({ format: 'BelaPcela', formatVersion: 1, dataSchemaVersion: DATA_SCHEMA_VERSION, exportedAt: new Date().toISOString() });
@@ -61,7 +62,7 @@ export async function exportFullZIP(snapshot: TransferSnapshot): Promise<Blob> {
     payload[path] = [bytes, { level: 0 }]; files.push({ mediaId: item.id, path, mimeType, size: original.size, sha256: await digest(bytes) });
   }
   const family = jsonBytes({ dataSchemaVersion: DATA_SCHEMA_VERSION, archive });
-  const manifest = jsonBytes({ ...makeHeader(), kind: 'full', files });
+  const manifest = jsonBytes({ ...makeHeader(), kind: 'full', archive: { id: archive.id, name: archive.name }, files });
   if (family.length > MAX_JSON_BYTES || manifest.length > MAX_JSON_BYTES) throw new DomainError('JSON документ прелази 10 MB.');
   payload['family.json'] = family; payload['manifest.json'] = manifest;
   const result = await new Promise<Uint8Array<ArrayBuffer>>((resolve, reject) => zip(payload, { level: 6 }, (error, bytes) => error ? reject(error) : resolve(bytes)));
@@ -85,6 +86,7 @@ export async function preflightImport(file: File): Promise<ImportPlan> {
   const manifest = manifestSchema.safeParse(parseJSON(entries.get('manifest.json')!)); const family = dataSchema.safeParse(parseJSON(entries.get('family.json')!));
   if (!manifest.success || !family.success || manifest.data.dataSchemaVersion !== family.data.dataSchemaVersion) throw new DomainError('Манифест или верзија збирке нису подржани.');
   const archive = migrate(family.data.archive, family.data.dataSchemaVersion);
+  if (archive.id !== manifest.data.archive.id || archive.name !== manifest.data.archive.name) throw new DomainError('Манифест и породични подаци описују различите збирке.');
   if (archive.media.some(item => item.src)) throw new DomainError('ZIP користи само релативне путање оригинала из манифеста.');
   const files: MediaFileInput[] = []; const used = new Set(['manifest.json', 'family.json']); const ids = new Set<string>();
   if (manifest.data.files.length !== archive.media.length) throw new DomainError('Списак оригинала се не подудара са породичним подацима.');

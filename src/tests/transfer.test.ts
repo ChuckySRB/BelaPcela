@@ -28,6 +28,7 @@ describe('portable archive formats and preflight', () => {
     const entries = await readBoundedZip(new Uint8Array(await blob.arrayBuffer()));
     expect([...entries.keys()]).toEqual(expect.arrayContaining(['manifest.json', 'family.json', 'data/documents/media-000001.txt']));
     expect(new TextDecoder().decode(entries.get('manifest.json'))).not.toContain('blob:');
+    expect(JSON.parse(new TextDecoder().decode(entries.get('manifest.json'))).archive).toEqual({ id: snapshot.archive.id, name: snapshot.archive.name });
   });
   it('exports explicitly data-only JSON with retained media descriptions and an import warning', async () => {
     const snapshot = sample(); const plan = await preflightImport(input(exportDataJSON(snapshot.archive)));

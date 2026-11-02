@@ -23,6 +23,7 @@ export function OfflineStatus() {
     return () => { disposed = true; registered?.removeEventListener('updatefound', found); navigator.serviceWorker.removeEventListener('controllerchange', controlled); };
   }, []);
   if (!import.meta.env.PROD) return null;
+  if (!('serviceWorker' in navigator)) return <div className="offline-status" role="status">Овај прегледач не може да припреми апликацију за рад без интернета. Користите HTTPS или localhost и подржан прегледач.</div>;
   return <div className="offline-status"><span role="status">{error ? 'Припрема за рад без интернета није успела. Поново отворите страницу када сте повезани.' : ready ? 'Апликација је спремна за рад без интернета.' : 'Припремамо апликацију за рад без интернета…'}</span>{waiting && <><span>Доступна је нова верзија. Прво сачувајте отворен унос.</span><button className="text-button" onClick={() => {
     applying.current = true;
     const activated = () => { if (waiting.state === 'activated') { waiting.removeEventListener('statechange', activated); reloadOnce(); } };
