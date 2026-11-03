@@ -97,6 +97,59 @@ describe('transactional local archive', () => {
   });
 });
 
+describe('starting an independent collection', () => {
+  it('starts empty, retains the old archive, supports the first person and remembers the active collection', async () => {
+    const { db, repository, dispatcher } = await createStore();
+    await dispatcher.execute({ type: 'updatePerson', personId: 'nikola', changes: { nickname: 'Сачувано' } });
+    const original = await repository.load();
+    const created = await dispatcher.createArchive('  Моја породица  ');
+    expect(created.archive).toEqual({ id: expect.any(String), name: 'Моја породица', people: [], parentChildRelationships: [], partnerships: [], kinshipAssertions: [], events: [], places: [], media: [], sources: [] });
+    expect(created.archive.id).not.toBe(original.archive.id);
+    expect(dispatcher.canUndo).toBe(false);
+    expect((await new ArchiveRepository(db).initialize(demoArchive)).archive).toEqual(created.archive);
+    const first = await dispatcher.execute({ type: 'createPerson', person: { name: 'Прва особа' } });
+    await dispatcher.undo(); expect(dispatcher.current.archive.people).toEqual([]);
+    await dispatcher.redo(); expect(dispatcher.current.archive.people[0].id).toBe(first.personId);
+    await dispatcher.selectArchive(original.archive.id);
+    expect(dispatcher.current).toEqual(original);
+    expect(await repository.listArchives()).toHaveLength(2);
+  });
+
+  it('rolls back a failed creation and active selection while keeping redo available', async () => {
+    const { db, repository, dispatcher } = await createStore();
+    await dispatcher.execute({ type: 'createPerson', person: {} }); await dispatcher.undo();
+    const before = await repository.load();
+    const failure = vi.spyOn(db.table('preferences'), 'put').mockRejectedValueOnce(new DOMException('Disk full', 'QuotaExceededError'));
+    await expect(dispatcher.createArchive('Моја породица')).rejects.toThrow();
+    expect(await repository.load()).toEqual(before);
+    expect(await repository.listArchives()).toHaveLength(1);
+    expect(dispatcher.canRedo).toBe(true);
+    failure.mockRestore();
+    await dispatcher.createArchive('Моја породица');
+    expect(dispatcher.canRedo).toBe(false);
+  });
+
+  it('rejects a stale creation without creating an orphan collection', async () => {
+    const { repository, dispatcher } = await createStore();
+    const stale = new CommandDispatcher(repository, await repository.load());
+    await dispatcher.createArchive('Нова збирка');
+    await expect(stale.createArchive('Застарео прозор')).rejects.toBeInstanceOf(ConflictError);
+    expect(await repository.listArchives()).toHaveLength(2);
+    expect((await repository.load()).archive.name).toBe('Нова збирка');
+  });
+
+  it('rejects blank and overlong names and allows independent collections with the same name', async () => {
+    const { repository, dispatcher } = await createStore();
+    await expect(dispatcher.createArchive('  ')).rejects.toThrow('назив');
+    await expect(dispatcher.createArchive('а'.repeat(201))).rejects.toThrow('назив');
+    expect(await repository.listArchives()).toHaveLength(1);
+    const first = await dispatcher.createArchive('Породица');
+    const second = await dispatcher.createArchive('Породица');
+    expect(first.archive.id).not.toBe(second.archive.id);
+    expect(await repository.listArchives()).toHaveLength(3);
+  });
+});
+
 describe('domain command rules', () => {
   it('rejects self-parentage, ancestry cycles, duplicate relationships, and missing references', () => {
     for (const id of ['nikola', 'luka', 'jovan', 'missing']) {

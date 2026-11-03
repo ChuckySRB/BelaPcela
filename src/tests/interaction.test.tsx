@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { HexBadge } from '../components/HexBadge';
 import { PersonInspector } from '../features/tree/PersonDetails';
-import { GlobalSearchDialog } from '../features/tree/PrototypeDialogs';
+import { GlobalSearchDialog } from '../features/people/GlobalSearchDialog';
 import { RelativeEditorDialog } from '../features/people/RelativeEditorDialog';
 import { PersonEditorDialog } from '../features/people/PersonEditorDialog';
 import { demoArchive } from '../domain/fixtures';
@@ -27,7 +27,7 @@ describe('selection and focus', () => {
   });
 });
 
-describe('accessible prototype components', () => {
+describe('accessible shared components', () => {
   it('activates an interactive hex badge with the keyboard', async () => {
     const click = vi.fn();
     render(<HexBadge label="Породична веза" onClick={click}>+</HexBadge>);
@@ -39,7 +39,7 @@ describe('accessible prototype components', () => {
 
   it('omits absent optional fields from the inspector', () => {
     const archive = { ...demoArchive, people: [{ id: 'empty' }], parentChildRelationships: [], partnerships: [], events: [] };
-    const actions = { selectPerson: vi.fn(), focusPerson: vi.fn(), openProfile: vi.fn(), addRelative: vi.fn(), editPerson: vi.fn(), showUnavailable: vi.fn() };
+    const actions = { selectPerson: vi.fn(), focusPerson: vi.fn(), openProfile: vi.fn(), addRelative: vi.fn(), editPerson: vi.fn() };
     render(<PersonInspector archive={archive} person={archive.people[0]} actions={actions} focused={false} onClose={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Неименована особа' })).toBeInTheDocument();
     expect(screen.queryByText('Рођење')).not.toBeInTheDocument();

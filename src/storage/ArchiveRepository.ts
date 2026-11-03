@@ -4,6 +4,7 @@ import { validateArchive, DomainError } from '../domain/validation';
 import { collectionKeys, DATA_SCHEMA_VERSION, createFamilyDatabase } from './database';
 import type { MediaFileInput, StoredMediaFile } from './mediaFiles';
 import type { ImportPlan, TransferSnapshot } from '../services/archiveTransfer';
+import { createEmptyArchive } from '../domain/archive';
 
 interface ArchiveMetadata { id: string; name: string; schemaVersion: number; revision: number; createdAt: string; updatedAt: string }
 type StoredEntity = Entity & { archiveId: string; order: number };
@@ -40,6 +41,9 @@ export class ArchiveRepository {
       const snapshot = await this.read(target);
       await this.db.table('preferences').put({ key: 'activeArchive', value: id }); return snapshot;
     });
+  }
+  async createArchive(name: string, expected: ArchiveSnapshot): Promise<ArchiveSnapshot> {
+    return this.importArchive({ archive: createEmptyArchive(name), files: [], kind: 'full', warnings: [] }, 'new', expected);
   }
   async importArchive(plan: ImportPlan, mode: 'new' | 'replace', expected: ArchiveSnapshot): Promise<ArchiveSnapshot> {
     const archive = validateArchive({ ...plan.archive, id: mode === 'new' ? crypto.randomUUID() : expected.archive.id });

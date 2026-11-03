@@ -54,6 +54,12 @@ export class CommandDispatcher {
       this.undoStack = []; this.redoStack = []; return this.snapshot;
     });
   }
+  createArchive(name: string) {
+    return this.serial(async () => {
+      this.snapshot = await this.repository.createArchive(name, this.snapshot);
+      this.undoStack = []; this.redoStack = []; return this.snapshot;
+    });
+  }
   private moveHistory(from: HistoryEntry[], to: HistoryEntry[], side: 'before' | 'after') {
     return this.serial(async () => {
       const entry = from.at(-1);

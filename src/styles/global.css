@@ -441,6 +441,16 @@ kbd { font: 11px var(--bp-font-body); border: 1px solid var(--bp-border); border
 .settings-section { padding-bottom: 24px; border-bottom: 1px solid var(--bp-border); line-height: 1.7; }
 .settings-section h2 { margin-top: 0; }
 .collection-switch { display: grid; gap: 14px; margin-top: 24px; }
+.empty-collection { height: 100%; overflow: auto; display: grid; place-items: center; padding: 32px 24px; text-align: center; }
+.empty-collection > div { width: min(100%, 560px); }
+.empty-collection .brand-mark { margin-bottom: 24px; width: 55px; height: 63px; }
+.empty-collection h1 { font-size: clamp(26px, 4vw, 36px); }
+.empty-collection p { line-height: 1.8; color: var(--bp-text-muted); }
+.empty-collection .editor-actions { justify-content: center; flex-wrap: wrap; }
+.shortcut-list > div { display: flex; gap: 20px; padding: 7px 0; border-bottom: 1px solid var(--bp-border-soft); font-size: 14px; }
+.shortcut-list dt { min-width: 140px; font-weight: 700; }
+.shortcut-list dd { margin: 0; }
+@media (max-width: 430px) { .shortcut-list > div { flex-direction: column; gap: 4px; } }
 .demo-banner .backup-reminder { margin-left: auto; font-size: inherit; min-height: 30px; text-decoration: underline; white-space: nowrap; }
 @media (max-width: 750px) { .settings-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .demo-banner .banner-description { display: none; } .nav-primary .nav-item { min-width: 0; } }

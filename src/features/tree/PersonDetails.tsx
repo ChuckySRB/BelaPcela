@@ -19,7 +19,6 @@ export interface PersonActions {
   openProfile: (id: string) => void;
   addRelative: (id: string) => void;
   editPerson: (id: string) => void;
-  showUnavailable: (title: string) => void;
   editRelationship?: (ref: RelationshipRef) => void;
   deleteRelationship?: (ref: RelationshipRef) => void;
   inspectRelationship?: (ref: RelationshipRef) => void;

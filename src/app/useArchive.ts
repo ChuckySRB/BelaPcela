@@ -52,8 +52,11 @@ export function useArchive() {
   const selectArchive = useCallback(async (id: string) => {
     await run(dispatcher => dispatcher.selectArchive(id)); setSession(value => value + 1);
   }, [run]);
+  const createArchive = useCallback(async (name: string) => {
+    await run(dispatcher => dispatcher.createArchive(name)); setSession(value => value + 1);
+  }, [run]);
   return {
-    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo, uploadFiles, loadMedia, session, importArchive, selectArchive,
+    archive: snapshot?.archive || null, status, error, reload, execute, undo, redo, uploadFiles, loadMedia, session, importArchive, selectArchive, createArchive,
     transferSnapshot: () => repository.transferSnapshot(), listArchives: () => repository.listArchives(),
     canUndo: !!controller.current?.canUndo, canRedo: !!controller.current?.canRedo,
     undoLabel: controller.current?.undoLabel, redoLabel: controller.current?.redoLabel,
