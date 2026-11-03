@@ -1,5 +1,7 @@
 # БелаПчела — Product, UX & Design Specification v0.5
 
+Design reference and original milestone plan. The [README](../../README.md) and [user guide](../USER_GUIDE.sr.md) describe the released application and its supported scope.
+
 > A local-first Serbian-language family genealogy web application designed as a modern family museum. This document is the product/design source of truth for implementation in Codex. The public project name is **БелаПчела** (retain Cyrillic spelling and capitalization, as confirmed on 2026-11-02). Internal code identifiers use English; UI copy defaults to Serbian Cyrillic.
 
 ## 0. Confirmed product decisions

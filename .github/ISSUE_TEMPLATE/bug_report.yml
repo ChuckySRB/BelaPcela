@@ -1,0 +1,30 @@
+name: Bug report
+description: Report unexpected behavior using invented family data.
+body:
+  - type: markdown
+    attributes:
+      value: Please use the example family or invented records. Do not attach real family backups, private documents or personal screenshots.
+  - type: input
+    id: environment
+    attributes:
+      label: App version, browser and operating system
+      placeholder: 1.0.0, Chrome, Linux; online or offline
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Synthetic examples, relevant error text or a screenshot with invented data.
