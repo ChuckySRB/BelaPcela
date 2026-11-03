@@ -16,6 +16,7 @@ test('starts an empty family, adds the first person, reloads and reopens the ret
   await page.getByLabel('Сачуване збирке').selectOption('demo-petronic');
   await page.getByRole('button', { name: 'Отвори изабрану збирку' }).click();
   await expect(page.locator('.person-node')).toHaveCount(11);
-  await page.getByRole('button', { name: 'О збирци', exact: true }).click();
+  await page.getByRole('button', { name: 'Подешавања', exact: true }).click();
+  await page.getByRole('button', { name: 'О БелаПчели', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'О БелаПчели' })).toBeVisible();
 });

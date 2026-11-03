@@ -7,7 +7,7 @@ import type { Plugin } from 'vite';
 export function offlineShell(): Plugin {
   let publicDir = '';
   return { name: 'belapcela-offline-shell', apply: 'build', configResolved(config) { publicDir = config.publicDir; }, generateBundle: { order: 'post', handler(_, bundle) {
-    const publicAssets = ['seal.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+    const publicAssets = ['seal.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'licenses/THIRD_PARTY_NOTICES.txt', 'licenses/PT-Sans-OFL.txt', 'licenses/PT-Serif-OFL.txt'];
     const assets = [...Object.keys(bundle), ...publicAssets].filter(path => !path.endsWith('.map'));
     const hash = createHash('sha256').update(JSON.stringify(bundle));
     for (const path of publicAssets) hash.update(readFileSync(resolve(publicDir, path)));

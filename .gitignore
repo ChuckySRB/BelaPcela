@@ -7,3 +7,10 @@ test-results-offline/
 *.tsbuildinfo
 *.local
 .npm-cache/
+.env
+.env.*
+!.env.example
+/backups/
+/exports/
+/БелаПчела-*.zip
+/БелаПчела-*.json

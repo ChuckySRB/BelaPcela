@@ -55,7 +55,7 @@ describe('first-use guidance', () => {
   it('retains the new-collection draft on failure and lets the user retry', async () => {
     const current = store(); current.createArchive = vi.fn().mockRejectedValueOnce(new Error('Нема простора')).mockResolvedValueOnce(undefined);
     window.location.hash = '/settings';
-    render(<SettingsPage store={current} onBackup={vi.fn()} />);
+    render(<SettingsPage store={current} onBackup={vi.fn()} onAbout={vi.fn()} />);
     const input = screen.getByRole('textbox', { name: 'Назив нове збирке' });
     const create = screen.getByRole('button', { name: 'Направи празну збирку' });
     expect(create).toBeDisabled();
@@ -69,9 +69,11 @@ describe('first-use guidance', () => {
 
   it('updates the name after undo and locks collection creation while saving', async () => {
     const current = store();
-    const { rerender } = render(<SettingsPage store={current} onBackup={vi.fn()} />);
+    const about = vi.fn();
+    const { rerender } = render(<SettingsPage store={current} onBackup={vi.fn()} onAbout={about} />);
+    await userEvent.click(screen.getByRole('button', { name: 'О БелаПчели' })); expect(about).toHaveBeenCalledOnce();
     await userEvent.type(screen.getByRole('textbox', { name: 'Назив нове збирке' }), 'Будућа збирка');
-    rerender(<SettingsPage store={{ ...current, status: 'saving', archive: createEmptyArchive('Промењен назив') }} onBackup={vi.fn()} />);
+    rerender(<SettingsPage store={{ ...current, status: 'saving', archive: createEmptyArchive('Промењен назив') }} onBackup={vi.fn()} onAbout={about} />);
     expect(screen.getByRole('textbox', { name: 'Назив збирке' })).toHaveValue('Промењен назив');
     expect(screen.getByRole('textbox', { name: 'Назив нове збирке' })).toHaveValue('Будућа збирка');
     expect(screen.getByRole('button', { name: 'Направи празну збирку' })).toBeDisabled();

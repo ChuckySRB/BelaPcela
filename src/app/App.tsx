@@ -153,7 +153,7 @@ function ArchiveApp({ store }: { store: ArchiveStore }) {
       {placesRoute && <PlacesPage key={route} archive={archive} placeId={routeId('/place/')} />}
       {eventsRoute && <EventsPage key={route} archive={archive} eventId={routeId('/event/')} />}
       {mediaRoute && <MediaPage key={route} archive={archive} mediaId={routeId('/media/')} onSave={saveCommand} />}
-      {settingsRoute && <Suspense fallback={<p role="status">Отварамо подешавања…</p>}><SettingsPage store={store} onBackup={() => setDialog({ kind: 'backup' })} /></Suspense>}
+      {settingsRoute && <Suspense fallback={<p role="status">Отварамо подешавања…</p>}><SettingsPage store={store} onBackup={() => setDialog({ kind: 'backup' })} onAbout={() => setDialog({ kind: 'about' })} /></Suspense>}
       {profileId && !profile && <p role="alert" className="route-error">Особа није пронађена. <a href="#/tree">Назад на стабло</a></p>}
     </div>
     {dialog?.kind === 'search' && <GlobalSearchDialog archive={archive} onCreate={() => setDialog({ kind: 'edit' })} onClose={() => setDialog(null)} onSelect={id => { selectPerson(id); setDialog(null); navigate('/tree'); }} />}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ArchiveStore } from '../../app/useArchive';
 
-export default function SettingsPage({ store, onBackup }: { store: ArchiveStore; onBackup: () => void }) {
+export default function SettingsPage({ store, onBackup, onAbout }: { store: ArchiveStore; onBackup: () => void; onAbout: () => void }) {
   const [collections, setCollections] = useState<{ id: string; name: string }[]>([]); const [selected, setSelected] = useState(store.archive!.id);
   const [name, setName] = useState(store.archive!.name); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [storage, setStorage] = useState('');
   const [newName, setNewName] = useState('');
@@ -25,6 +25,7 @@ export default function SettingsPage({ store, onBackup }: { store: ArchiveStore;
     <section className="settings-section"><h2>Резервне копије</h2><p>Потпуна ZIP копија садржи и оригиналне датотеке. JSON је само са подацима. Увоз увек приказује преглед пре потврде.</p><button className="button button--primary" onClick={onBackup}>Резервна копија и увоз</button>{lastBackup && <p className="prototype-note">Последње припремљено ZIP преузимање: {lastBackup}. Проверите да је датотека сачувана.</p>}</section>
     <section className="settings-section"><h2>Чување и приватност</h2><p>Подаци остају у овом профилу прегледача, на истој адреси сајта. Нема налога, сервера за породичне податке, аналитике или отпремања датотека.</p><p>Брисање података сајта или профила може обрисати све збирке. Трајније чување умањује могућност аутоматског уклањања података, али не замењује резервне копије.</p>{storage && <p>{storage}</p>}<button className="button" onClick={() => { if (!navigator.storage?.persist) { setMessage('Овај прегледач нема захтев за трајније чување.'); return; } void navigator.storage.persist().then(granted => setMessage(granted ? 'Прегледач је одобрио трајније чување. Наставите да правите ZIP копије.' : 'Трајније чување није одобрено. ZIP копије остају доступне.')).catch(() => setError('Захтев за трајније чување није успео.')); }}>Затражи трајније чување</button></section>
     <section className="settings-section"><h2>Рад без интернета</h2><p>Продукцијска верзија после првог успешног учитавања чува апликацију и локалне фонтове за рад без интернета. Статус припреме приказан је испод траке збирке.</p><p>Инсталирајте БелаПчела преко менија прегледача „Инсталирај апликацију” или „Додај на почетни екран”, ако је опција доступна. Потребни су HTTPS или localhost и подршка прегледача.</p><p>Локална координатна мрежа ради без интернет подлоге. Развојна верзија не инсталира сервисни радник.</p></section></div>
+    <section className="settings-section"><h2>Помоћ и верзија</h2><p>Сазнајте како да започнете збирку, пренесете податке и користите пречице на тастатури.</p><button className="button" onClick={onAbout}>О БелаПчели</button></section>
     {message && <p role="status">{message}</p>}{error && <p className="form-error" role="alert">{error}</p>}
   </main>;
 }

@@ -10,6 +10,7 @@ export function AboutDialog({ onClose, onSettings, onBackup }: { onClose: () => 
     <p>Брисање података сајта или профила прегледача може обрисати збирку. Редовно чувајте потпуну ZIP копију на другом месту. JSON садржи само податке, без оригиналних датотека.</p>
     <h3>Тастатура</h3><dl className="shortcut-list"><div><dt>Ctrl / ⌘ K</dt><dd>Пронађи или додај особу</dd></div><div><dt>Ctrl / ⌘ Z</dt><dd>Поништи последњу сачувану измену</dd></div><div><dt>Ctrl / ⌘ Shift Z</dt><dd>Понови измену</dd></div><div><dt>F</dt><dd>Фокусирај изабрану особу у стаблу</dd></div><div><dt>Escape</dt><dd>Затвори дијалог или инспектор</dd></div></dl>
     <p className="prototype-note">Историја измена важи за ову сесију; после поновног учитавања подаци остају сачувани, а историја почиње изнова.</p>
+    <p><a href={`${import.meta.env.BASE_URL}licenses/THIRD_PARTY_NOTICES.txt`} target="_blank" rel="noopener noreferrer">Лиценца и библиотеке</a></p>
     <div className="editor-actions"><button className="button" onClick={onSettings}>Отвори подешавања</button><button className="button button--primary" onClick={onBackup}>Резервна копија и увоз</button></div>
   </Modal>;
 }
